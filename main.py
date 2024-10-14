@@ -145,7 +145,6 @@ class UexcorpTrader(QWidget):
         return buy_tab
 
     def create_sell_tab(self):
-        # Similar structure to buy_tab, adjust labels and button connection
         sell_tab = QWidget()
         layout = QVBoxLayout()
 
@@ -200,30 +199,34 @@ class UexcorpTrader(QWidget):
     async def load_data(self):
         try:
             async with aiohttp.ClientSession() as session:
-                self.star_systems = await self.fetch_data(
-                    session, "/star_systems"
-                )
-                self.commodities = await self.fetch_data(
-                    session, "/commodities"
-                )
+                self.star_systems = await self.fetch_data(session, "/star_systems")
+                self.commodities = await self.fetch_data(session, "/commodities")
 
                 self.update_system_combos()
                 self.update_commodity_combos()
 
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to load data: {e}")
+            self.log_api_output(f"Error loading initial data: {e}")
 
     async def fetch_data(self, session, endpoint, params=None):
         url = f"{API_BASE_URL}{endpoint}"
         self.log_api_output(f"API Request: GET {url} {params if params else ''}")
-        async with session.get(url, params=params) as response:
-            if response.status == 200:
-                return await response.json()
-            else:
-                error_message = await response.text()
-                raise Exception(
-                    f"API request failed with status {response.status}: {error_message}"
-                )
+        try:
+            async with session.get(url, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    if isinstance(data, list) and all(isinstance(item, dict) for item in data):
+                        return data
+                    else:
+                        self.log_api_output(f"Unexpected data format from API: {data}")
+                        return []
+                else:
+                    error_message = await response.text()
+                    self.log_api_output(f"API request failed with status {response.status}: {error_message}")
+                    return []
+        except Exception as e:
+            self.log_api_output(f"Error during API request to {url}: {e}")
+            return []
 
     def update_system_combos(self):
         self.system_combo.clear()
