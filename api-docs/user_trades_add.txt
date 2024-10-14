@@ -1,0 +1,77 @@
+ /user_trades_add
+Method 	POST
+URL 	https://uexcorp.space/api/2.0/user_trades_add/
+Authorization 	Bearer Token	
+Cache TTL 	—
+
+Input (Header) 	
+secret_key string(40) // required user secret key, should be passed via header, obtained in user profile
+Input (POST) 	id_terminal int(11) // required
+id_commodity int(11) // required
+id_user_fleet int(11) // optional, user fleet vehicle ID
+operation string(4) // transaction type, required, should be 'buy' or 'sell'
+scu int(11) // required, amount purchased/sold in SCU
+price float // required, values in UEC per SCU
+is_production int(1) // required for production
+
+JSON input example
+	{
+    "is_production": 0,
+    "id_terminal": 29,
+    "id_commodity": 18,
+    "operation": "buy",
+    "scu": 110,
+    "price": 2441
+}
+
+Output 	
+id_user_trade int(11) // user trade unique ID
+
+Responses 	
+
+// user secret key not provided
+missing_secret_key
+
+// user not found with provided secret key
+user_not_found
+
+// user banned or disabled by administrator
+user_not_allowed
+
+// user account not verified on RSI website
+user_not_verified
+
+// user secret key length should be exactly 40 characters
+invalid_secret_key
+
+// transaction type not provided
+missing_operation
+
+// invalid transaction type - should be buy or sell
+invalid_operation
+
+// terminal ID not provided
+missing_id_terminal
+
+// terminal ID not found
+terminal_not_found
+
+// commodity ID not provided
+missing_id_commodity
+
+// commodity ID not found
+commodity_not_found
+
+// SCU not provided
+missing_scu
+
+// commodity price per SCU not provided
+missing_price
+
+// vehicle ID not found
+vehicle_not_found
+
+// all good!
+ok
+
+Last update: 	4 months ago

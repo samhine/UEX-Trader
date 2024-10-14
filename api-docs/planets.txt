@@ -1,0 +1,28 @@
+ /planets
+Methods 	GET
+URL 	https://uexcorp.space/api/2.0/planets?id_star_system={int}	
+Authorization 	—
+Cache TTL 	+1 day
+Input 	id_star_system int(11) // optional
+is_lagrange int(11) // optional
+
+Output 	
+id int(11)
+id_star_system int(11)
+id_faction int(11)
+name string(255)
+name_origin string(255) // discovery name
+code string(255) // our code
+is_available int(1)
+is_visible int(1)
+is_default int(1)
+is_lagrange int(1)
+date_added int(11) // timestamp
+date_modified int(11) // timestamp
+star_system_name string(255)
+
+Response 
+status 	• ok
+
+Update rate 	Patch cycle (usually)
+Documentation update: 	4 months ago

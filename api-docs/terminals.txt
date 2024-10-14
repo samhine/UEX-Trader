@@ -1,0 +1,83 @@
+ /terminals
+Methods 	GET
+
+URL 	
+https://uexcorp.space/api/2.0/terminals?id_star_system={int}
+https://uexcorp.space/api/2.0/terminals?id_planet={int}
+https://uexcorp.space/api/2.0/terminals?name={string}
+https://uexcorp.space/api/2.0/terminals?code={string}
+
+Authorization 	—
+Cache TTL 	+12 hours
+
+Input 	
+id_star_system int(11)
+id_planet int(11)
+id_orbit int(11)
+id_moon int(11)
+id_space_station int(11)
+id_city int(11)
+id_outpost int(11)
+id_poi int(11)
+type string(255)
+name string(255)
+code string(255)
+Output 	id int(11)
+id_star_system int(11)
+id_planet int(11)
+id_orbit int(11)
+id_moon int(11)
+id_space_station int(11)
+id_outpost int(11)
+id_poi int(11)
+id_city int(11)
+id_faction int(11)
+name string(255)
+nickname string(255)
+code string(6) // our code
+type string(20) // our type
+screenshot string(255)
+screenshot_thumbnail string(255) // please choose thumbnails whenever possible
+screenshot_author string(255) // screenshot author
+mcs int(11) // maximum container size operated by freight elevator (in SCU)
+is_available string(255) // is available in-game
+is_visible int(1) // is visible in the UEX website
+is_default_system int(1) // is the default terminal in a star system
+is_affinity_influenceable int(1) // if terminal data is faction affinity influenced
+is_habitation int(1)
+is_refinery int(1)
+is_cargo_center int(1)
+is_medical int(1)
+is_food int(1)
+is_shop_fps int(1) // shop trading FPS items
+is_shop_vehicle int(1) // shop trading vehicle components
+is_refuel int(1)
+is_repair int(1)
+is_nqa int(1) // no questions asked terminal
+has_loading_dock int(1)
+has_docking_port int(1)
+has_freight_elevator int(1)
+date_added int(11) // timestamp
+date_modified int(11) // timestamp
+star_system_name string(255)
+planet_name string(255)
+orbit_name string(255)
+moon_name string(255)
+space_station_name string(255)
+outpost_name string(255)
+city_name string(255)
+Types reference 	commodity
+item
+commodity_raw
+vehicle_buy
+vehicle_rent
+vehicle_pledge
+fuel
+refinery_audit
+workaround
+
+Response 
+status 	• invalid_type
+• ok
+Update rate 	Patch cycle (usually)
+Documentation update: 	2 months ago

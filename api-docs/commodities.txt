@@ -1,0 +1,35 @@
+ /commodities
+Method 	GET
+URL 	https://uexcorp.space/api/2.0/commodities
+Authorization 	—
+Cache TTL 	+1 hour
+
+Input 	-
+Output 	id int(11)
+id_parent int(11)
+name string(255)
+code string(5) // UEX commodity code
+slug string(255) // UEX URL slug
+kind string(255)
+price_buy float // average market price per SCU
+price_sell float // average market price per SCU
+is_available int(1) // available in-game
+is_visible int(1) // visible on the website
+is_raw int(1)
+is_refined int(1)
+is_mineral int(1)
+is_harvestable int(1)
+is_buyable int(1)
+is_sellable int(1)
+is_temporary int(1)
+is_illegal int(1) // if the commodity is restricted in one or more jurisdictions
+is_fuel int(1)
+wiki string(255)
+date_added int(11) // timestamp
+date_modified int(11) // timestamp
+
+Response 
+status 	• ok
+
+Update date 	Patch cycle (usually)
+Documentation update: 	5 days ago

@@ -1,0 +1,22 @@
+ /star_systems
+Methods 	GET
+URL 	https://uexcorp.space/api/2.0/star_systems
+Authorization 	—
+Cache TTL 	+1 day
+
+Input 	-
+Output 	id int(11)
+name string(255)
+code string(2) // our code
+is_available int(1)
+is_visible int(1)
+is_default int(1)
+wiki string(255) // Wiki URL
+date_added int(11) // timestamp
+date_modified int(11) // timestamp
+
+Response 
+status 	• ok
+
+Update rate 	Patch cycle (usually)
+Documentation update: 	4 months ago

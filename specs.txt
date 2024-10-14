@@ -1,0 +1,10 @@
+Give me a little example of an application written in Python, using PyQt for the interface, ConfigParser to store long-term variables and aiohttp for API interactions.
+
+The application design is simple, and must contain a few tabs :
+1st tab : Allow you to configure the API tokens for uexcorp.space (as documented on https://uexcorp.space/api/documentation/ )
+2nd tab : Buy commodity ( list of commodities on https://uexcorp.space/api/2.0/commodities ) at a given terminal ( list of terminals on https://uexcorp.space/api/2.0/terminals , documentation on https://uexcorp.space/api/documentation/id/terminals/ )
+3rd tab : Sell commodity (like buying)
+
+Buying or selling commodity uses the given POST call :
+https://uexcorp.space/api/2.0/user_trades_add/
+Documentation at https://uexcorp.space/api/documentation/id/user_trades_add/
