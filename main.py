@@ -46,6 +46,8 @@ class UexcorpTrader(QWidget):
         super().__init__()
         self.config_manager = ConfigManager()
         self.api_key = self.config_manager.get_api_key()
+        self.star_systems = []
+        self.planets = []
         self.terminals = []
         self.commodities = []
 
@@ -55,7 +57,7 @@ class UexcorpTrader(QWidget):
         self.setWindowTitle("UEXcorp Trader")
 
         # Make window resizable and fullscreen
-        self.showFullScreen()  # Start in fullscreen mode
+        self.showFullScreen()
 
         # Create tabs
         tabs = QTabWidget()
@@ -98,6 +100,20 @@ class UexcorpTrader(QWidget):
         buy_tab = QWidget()
         layout = QVBoxLayout()
 
+        # System Selection
+        system_label = QLabel("Select System:")
+        self.system_combo = QComboBox()
+        self.system_combo.currentIndexChanged.connect(self.update_planets)
+        layout.addWidget(system_label)
+        layout.addWidget(self.system_combo)
+
+        # Planet Selection
+        planet_label = QLabel("Select Planet:")
+        self.planet_combo = QComboBox()
+        self.planet_combo.currentIndexChanged.connect(self.update_terminals)
+        layout.addWidget(planet_label)
+        layout.addWidget(self.planet_combo)
+
         # Terminal Selection
         terminal_label = QLabel("Select Terminal:")
         self.terminal_combo = QComboBox()
@@ -133,6 +149,24 @@ class UexcorpTrader(QWidget):
         sell_tab = QWidget()
         layout = QVBoxLayout()
 
+        # System Selection
+        system_label = QLabel("Select System:")
+        self.sell_system_combo = QComboBox()
+        self.sell_system_combo.currentIndexChanged.connect(
+            self.update_sell_planets
+        )
+        layout.addWidget(system_label)
+        layout.addWidget(self.sell_system_combo)
+
+        # Planet Selection
+        planet_label = QLabel("Select Planet:")
+        self.sell_planet_combo = QComboBox()
+        self.sell_planet_combo.currentIndexChanged.connect(
+            self.update_sell_terminals
+        )
+        layout.addWidget(planet_label)
+        layout.addWidget(self.sell_planet_combo)
+
         # Terminal Selection
         terminal_label = QLabel("Select Terminal:")
         self.sell_terminal_combo = QComboBox()
@@ -166,11 +200,15 @@ class UexcorpTrader(QWidget):
     async def load_data(self):
         try:
             async with aiohttp.ClientSession() as session:
-                self.terminals = await self.fetch_data(session, "/terminals")
-                self.commodities = await self.fetch_data(session, "/commodities")
+                self.star_systems = await self.fetch_data(
+                    session, "/star_systems"
+                )
+                self.commodities = await self.fetch_data(
+                    session, "/commodities"
+                )
 
-            self.update_terminal_combos()
-            self.update_commodity_combos()
+                self.update_system_combos()
+                self.update_commodity_combos()
 
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to load data: {e}")
@@ -190,19 +228,129 @@ class UexcorpTrader(QWidget):
                     f"API request failed with status {response.status}: {error_message}"
                 )
 
-    def update_terminal_combos(self):
+    def update_system_combos(self):
+        self.system_combo.clear()
+        self.sell_system_combo.clear()
+        for star_system in self.star_systems:
+            self.system_combo.addItem(
+                star_system["name"], star_system["id"]
+            )
+            self.sell_system_combo.addItem(
+                star_system["name"], star_system["id"]
+            )
+
+    def update_planets(self):
+        system_id = self.system_combo.currentData()
+        if system_id:
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(
+                self.update_planets_async(system_id)
+            )
+
+    async def update_planets_async(self, system_id):
+        try:
+            async with aiohttp.ClientSession() as session:
+                self.planets = await self.fetch_data(
+                    session, f"/planets?id_star_system={system_id}"
+                )
+                self.update_planet_combo()
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Error", f"Failed to load planets: {e}"
+            )
+
+    def update_sell_planets(self):
+        system_id = self.sell_system_combo.currentData()
+        if system_id:
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(
+                self.update_sell_planets_async(system_id)
+            )
+
+    async def update_sell_planets_async(self, system_id):
+        try:
+            async with aiohttp.ClientSession() as session:
+                self.planets = await self.fetch_data(
+                    session, f"/planets?id_star_system={system_id}"
+                )
+                self.update_sell_planet_combo()
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Error", f"Failed to load planets: {e}"
+            )
+
+    def update_planet_combo(self):
+        self.planet_combo.clear()
+        for planet in self.planets:
+            self.planet_combo.addItem(planet["name"], planet["id"])
+
+    def update_sell_planet_combo(self):
+        self.sell_planet_combo.clear()
+        for planet in self.planets:
+            self.sell_planet_combo.addItem(planet["name"], planet["id"])
+
+    def update_terminals(self):
+        planet_id = self.planet_combo.currentData()
+        if planet_id:
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(
+                self.update_terminals_async(planet_id)
+            )
+
+    async def update_terminals_async(self, planet_id):
+        try:
+            async with aiohttp.ClientSession() as session:
+                self.terminals = await self.fetch_data(
+                    session, f"/terminals?id_planet={planet_id}"
+                )
+                self.update_terminal_combo()
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Error", f"Failed to load terminals: {e}"
+            )
+
+    def update_sell_terminals(self):
+        planet_id = self.sell_planet_combo.currentData()
+        if planet_id:
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(
+                self.update_sell_terminals_async(planet_id)
+            )
+
+    async def update_sell_terminals_async(self, planet_id):
+        try:
+            async with aiohttp.ClientSession() as session:
+                self.terminals = await self.fetch_data(
+                    session, f"/terminals?id_planet={planet_id}"
+                )
+                self.update_sell_terminal_combo()
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Error", f"Failed to load terminals: {e}"
+            )
+
+    def update_terminal_combo(self):
         self.terminal_combo.clear()
-        self.sell_terminal_combo.clear()
         for terminal in self.terminals:
             self.terminal_combo.addItem(terminal["name"], terminal["id"])
-            self.sell_terminal_combo.addItem(terminal["name"], terminal["id"])
+
+    def update_sell_terminal_combo(self):
+        self.sell_terminal_combo.clear()
+        for terminal in self.terminals:
+            self.sell_terminal_combo.addItem(
+                terminal["name"], terminal["id"]
+            )
 
     def update_commodity_combos(self):
         self.commodity_combo.clear()
         self.sell_commodity_combo.clear()
         for commodity in self.commodities:
-            self.commodity_combo.addItem(commodity["name"], commodity["id"])
-            self.sell_commodity_combo.addItem(commodity["name"], commodity["id"])
+            self.commodity_combo.addItem(
+                commodity["name"], commodity["id"]
+            )
+            self.sell_commodity_combo.addItem(
+                commodity["name"], commodity["id"]
+            )
 
     def save_api_key(self):
         self.api_key = self.api_key_input.text()
