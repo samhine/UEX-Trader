@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import (
     QComboBox,
     QMessageBox,
     QTabWidget,
+    QTextEdit,
 )
 from PyQt5.QtCore import Qt
 import configparser
@@ -59,9 +60,14 @@ class UexcorpTrader(QWidget):
         tabs.addTab(self.create_buy_tab(), "Buy Commodity")
         tabs.addTab(self.create_sell_tab(), "Sell Commodity")
 
+        # API Output
+        self.api_output = QTextEdit()
+        self.api_output.setReadOnly(True)
+
         # Layout
         main_layout = QVBoxLayout()
         main_layout.addWidget(tabs)
+        main_layout.addWidget(self.api_output)
         self.setLayout(main_layout)
 
         # Load data
@@ -168,11 +174,18 @@ class UexcorpTrader(QWidget):
 
     async def fetch_data(self, session, endpoint):
         url = f"{API_BASE_URL}{endpoint}"
+        self.log_api_output(f"API Request: GET {url}")
         async with session.get(url) as response:
+            self.log_api_output(f"API Response: Status {response.status}")
             if response.status == 200:
-                return await response.json()
+                data = await response.json()
+                self.log_api_output(f"API Data: {data}")
+                return data
             else:
-                raise Exception(f"API request failed with status {response.status}")
+                error_message = await response.text()
+                raise Exception(
+                    f"API request failed with status {response.status}: {error_message}"
+                )
 
     def update_terminal_combos(self):
         self.terminal_combo.clear()
@@ -234,14 +247,22 @@ class UexcorpTrader(QWidget):
                 "is_production": 0,  # Assuming not production
             }
 
+            self.log_api_output(
+                f"API Request: POST {API_BASE_URL}/user_trades_add/"
+            )
+            self.log_api_output(f"API Data: {data}")
             async with aiohttp.ClientSession(
                 headers={"secret_key": self.api_key}
             ) as session:
                 async with session.post(
                     f"{API_BASE_URL}/user_trades_add/", json=data
                 ) as response:
+                    self.log_api_output(
+                        f"API Response: Status {response.status}"
+                    )
                     if response.status == 200:
                         result = await response.json()
+                        self.log_api_output(f"API Data: {result}")
                         QMessageBox.information(
                             self,
                             "Success",
@@ -258,6 +279,9 @@ class UexcorpTrader(QWidget):
             QMessageBox.warning(self, "Input Error", str(e))
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred: {e}")
+
+    def log_api_output(self, message):
+        self.api_output.append(message)
 
 
 if __name__ == "__main__":
