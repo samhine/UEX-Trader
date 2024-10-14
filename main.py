@@ -215,10 +215,11 @@ class UexcorpTrader(QWidget):
             async with session.get(url, params=params) as response:
                 if response.status == 200:
                     data = await response.json()
+                    return data
                     if isinstance(data, list) and all(isinstance(item, dict) for item in data):
                         return data
                     else:
-                        self.log_api_output(f"Unexpected data format from API: {data}")
+                        self.log_api_output(f"Unexpected data format from API")
                         return []
                 else:
                     error_message = await response.text()
@@ -231,18 +232,21 @@ class UexcorpTrader(QWidget):
     def update_system_combos(self):
         self.system_combo.clear()
         self.sell_system_combo.clear()
-        for star_system in self.star_systems:
-            self.system_combo.addItem(
-                star_system["name"], star_system["id"]
-            )
-            self.sell_system_combo.addItem(
-                star_system["name"], star_system["id"]
-            )
+        for star_system in self.star_systems["data"]:
+            if star_system["is_available"] == 1:
+                systemname = star_system["name"]
+                systemid = star_system["id"]
+                self.system_combo.addItem(
+                    systemname, systemid
+                )
+                self.sell_system_combo.addItem(
+                    systemname, systemid
+                )
 
     def update_planets(self):
         system_id = self.system_combo.currentData()
         if system_id:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.new_event_loop()
             loop.run_until_complete(
                 self.update_planets_async(system_id)
             )
@@ -260,7 +264,7 @@ class UexcorpTrader(QWidget):
     def update_sell_planets(self):
         system_id = self.sell_system_combo.currentData()
         if system_id:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.new_event_loop()
             loop.run_until_complete(
                 self.update_sell_planets_async(system_id)
             )
@@ -288,7 +292,7 @@ class UexcorpTrader(QWidget):
     def update_terminals(self):
         planet_id = self.planet_combo.currentData()
         if planet_id:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.new_event_loop()
             loop.run_until_complete(
                 self.update_terminals_async(planet_id)
             )
@@ -306,7 +310,7 @@ class UexcorpTrader(QWidget):
     def update_sell_terminals(self):
         planet_id = self.sell_planet_combo.currentData()
         if planet_id:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.new_event_loop()
             loop.run_until_complete(
                 self.update_sell_terminals_async(planet_id)
             )
