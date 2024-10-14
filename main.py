@@ -255,9 +255,7 @@ class UexcorpTrader(QWidget):
                 )
                 self.update_planet_combo()
         except Exception as e:
-            QMessageBox.critical(
-                self, "Error", f"Failed to load planets: {e}"
-            )
+            self.log_api_output(f"Error loading planets: {e}")
 
     def update_sell_planets(self):
         system_id = self.sell_system_combo.currentData()
@@ -275,9 +273,7 @@ class UexcorpTrader(QWidget):
                 )
                 self.update_sell_planet_combo()
         except Exception as e:
-            QMessageBox.critical(
-                self, "Error", f"Failed to load planets: {e}"
-            )
+            self.log_api_output(f"Error loading planets: {e}")
 
     def update_planet_combo(self):
         self.planet_combo.clear()
@@ -305,9 +301,7 @@ class UexcorpTrader(QWidget):
                 )
                 self.update_terminal_combo()
         except Exception as e:
-            QMessageBox.critical(
-                self, "Error", f"Failed to load terminals: {e}"
-            )
+            self.log_api_output(f"Error loading terminals: {e}")
 
     def update_sell_terminals(self):
         planet_id = self.sell_planet_combo.currentData()
@@ -325,9 +319,7 @@ class UexcorpTrader(QWidget):
                 )
                 self.update_sell_terminal_combo()
         except Exception as e:
-            QMessageBox.critical(
-                self, "Error", f"Failed to load terminals: {e}"
-            )
+            self.log_api_output(f"Error loading terminals: {e}")
 
     def update_terminal_combo(self):
         self.terminal_combo.clear()
@@ -399,7 +391,7 @@ class UexcorpTrader(QWidget):
             }
 
             self.log_api_output(
-                f"API Request: POST {API_BASE_URL}/user_trades_add/"
+                f"API Request: POST {API_BASE_URL}/user_trades_add/ {data}"
             )
             async with aiohttp.ClientSession(
                 headers={"secret_key": self.api_key}
@@ -416,11 +408,7 @@ class UexcorpTrader(QWidget):
                         )
                     else:
                         error_message = await response.text()
-                        QMessageBox.critical(
-                            self,
-                            "Error",
-                            f"Trade failed with status {response.status}: {error_message}",
-                        )
+                        self.log_api_output(f"API request failed with status {response.status}: {error_message}")
         except ValueError as e:
             QMessageBox.warning(self, "Input Error", str(e))
         except Exception as e:
