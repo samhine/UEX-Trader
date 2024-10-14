@@ -213,15 +213,12 @@ class UexcorpTrader(QWidget):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to load data: {e}")
 
-    async def fetch_data(self, session, endpoint):
+    async def fetch_data(self, session, endpoint, params=None):
         url = f"{API_BASE_URL}{endpoint}"
-        self.log_api_output(f"API Request: GET {url}")
-        async with session.get(url) as response:
-            self.log_api_output(f"API Response: Status {response.status}")
+        self.log_api_output(f"API Request: GET {url} {params if params else ''}")
+        async with session.get(url, params=params) as response:
             if response.status == 200:
-                data = await response.json()
-                self.log_api_output(f"API Data: {data}")
-                return data
+                return await response.json()
             else:
                 error_message = await response.text()
                 raise Exception(
@@ -251,7 +248,7 @@ class UexcorpTrader(QWidget):
         try:
             async with aiohttp.ClientSession() as session:
                 self.planets = await self.fetch_data(
-                    session, f"/planets?id_star_system={system_id}"
+                    session, "/planets", params={'id_star_system': system_id}
                 )
                 self.update_planet_combo()
         except Exception as e:
@@ -271,7 +268,7 @@ class UexcorpTrader(QWidget):
         try:
             async with aiohttp.ClientSession() as session:
                 self.planets = await self.fetch_data(
-                    session, f"/planets?id_star_system={system_id}"
+                    session, "/planets", params={'id_star_system': system_id}
                 )
                 self.update_sell_planet_combo()
         except Exception as e:
@@ -301,7 +298,7 @@ class UexcorpTrader(QWidget):
         try:
             async with aiohttp.ClientSession() as session:
                 self.terminals = await self.fetch_data(
-                    session, f"/terminals?id_planet={planet_id}"
+                    session, "/terminals", params={'id_planet': planet_id}
                 )
                 self.update_terminal_combo()
         except Exception as e:
@@ -321,7 +318,7 @@ class UexcorpTrader(QWidget):
         try:
             async with aiohttp.ClientSession() as session:
                 self.terminals = await self.fetch_data(
-                    session, f"/terminals?id_planet={planet_id}"
+                    session, "/terminals", params={'id_planet': planet_id}
                 )
                 self.update_sell_terminal_combo()
         except Exception as e:
@@ -401,19 +398,14 @@ class UexcorpTrader(QWidget):
             self.log_api_output(
                 f"API Request: POST {API_BASE_URL}/user_trades_add/"
             )
-            self.log_api_output(f"API Data: {data}")
             async with aiohttp.ClientSession(
                 headers={"secret_key": self.api_key}
             ) as session:
                 async with session.post(
                     f"{API_BASE_URL}/user_trades_add/", json=data
                 ) as response:
-                    self.log_api_output(
-                        f"API Response: Status {response.status}"
-                    )
                     if response.status == 200:
                         result = await response.json()
-                        self.log_api_output(f"API Data: {result}")
                         QMessageBox.information(
                             self,
                             "Success",
