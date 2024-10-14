@@ -54,6 +54,9 @@ class UexcorpTrader(QWidget):
     def initUI(self):
         self.setWindowTitle("UEXcorp Trader")
 
+        # Make window resizable and fullscreen
+        self.showFullScreen()  # Start in fullscreen mode
+
         # Create tabs
         tabs = QTabWidget()
         tabs.addTab(self.create_config_tab(), "Configuration")
