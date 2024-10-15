@@ -95,6 +95,9 @@ class UexcorpTrader(QWidget):
         logging_level = logging.DEBUG if self.debug else logging.INFO
         logging.getLogger().setLevel(logging_level)
 
+        # Set logger as an instance attribute
+        self.logger = logging.getLogger(__name__)
+
         self.star_systems = []
         self.planets = []
         self.terminals = []
