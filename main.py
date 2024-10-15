@@ -20,36 +20,63 @@ import re
 
 API_BASE_URL = "https://uexcorp.space/api/2.0"
 
+# Configure logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s - %(filename)s:%(lineno)d')
+logger = logging.getLogger(__name__)
+
+def log_function_call(func):
+    async def async_wrapper(*args, **kwargs):
+        logger.debug(f"Entering {func.__name__}")
+        result = await func(*args, **kwargs)
+        logger.debug(f"Exiting {func.__name__}")
+        return result
+
+    def sync_wrapper(*args, **kwargs):
+        logger.debug(f"Entering {func.__name__}")
+        result = func(*args, **kwargs)
+        logger.debug(f"Exiting {func.__name__}")
+        return result
+
+    return async_wrapper if asyncio.iscoroutinefunction(func) else sync_wrapper
+
 class ConfigManager:
     def __init__(self, config_file="config.ini"):
         self.config_file = config_file
         self.config = configparser.ConfigParser()
         self.load_config()
 
+    @log_function_call
     def load_config(self):
         self.config.read(self.config_file)
 
+    @log_function_call
     def save_config(self):
         with open(self.config_file, "w") as f:
             self.config.write(f)
 
+    @log_function_call
     def get_api_key(self):
         return self.config.get("API", "key", fallback="")
 
+    @log_function_call
     def set_api_key(self, key):
         self.config["API"] = {"key": key}
         self.save_config()
 
+    @log_function_call
     def get_is_production(self):
         return self.config.getboolean("SETTINGS", "is_production", fallback=False)
 
+    @log_function_call
     def set_is_production(self, is_production):
         self.config["SETTINGS"] = {"is_production": str(is_production)}
         self.save_config()
 
+    @log_function_call
     def get_debug(self):
         return self.config.getboolean("SETTINGS", "debug", fallback=False)
 
+    @log_function_call
     def set_debug(self, debug):
         self.config["SETTINGS"]["debug"] = str(debug)
         self.save_config()
@@ -65,8 +92,7 @@ class UexcorpTrader(QWidget):
 
         # Configure logging based on the debug setting
         logging_level = logging.DEBUG if self.debug else logging.INFO
-        logging.basicConfig(level=logging_level, format='%(asctime)s - %(levelname)s - %(message)s - %(filename)s:%(lineno)d')
-        self.logger = logging.getLogger(__name__)
+        logging.getLogger().setLevel(logging_level)
 
         self.star_systems = []
         self.planets = []
@@ -75,8 +101,8 @@ class UexcorpTrader(QWidget):
 
         self.initUI()
 
+    @log_function_call
     def initUI(self):
-        self.logger.debug("Initializing UI")
         self.setWindowTitle("UEXcorp Trader")
         self.showFullScreen()
 
@@ -91,8 +117,8 @@ class UexcorpTrader(QWidget):
 
         asyncio.ensure_future(self.load_data())
 
+    @log_function_call
     def create_config_tab(self):
-        self.logger.debug("Creating configuration tab")
         config_tab = QWidget()
         layout = QVBoxLayout()
 
@@ -123,8 +149,8 @@ class UexcorpTrader(QWidget):
         config_tab.setLayout(layout)
         return config_tab
 
+    @log_function_call
     def create_trade_tab(self, title, trade_function):
-        self.logger.debug(f"Creating trade tab: {title}")
         trade_tab = QWidget()
         layout = QVBoxLayout()
 
@@ -170,8 +196,8 @@ class UexcorpTrader(QWidget):
         trade_tab.setLayout(layout)
         return trade_tab
 
+    @log_function_call
     async def load_data(self):
-        self.logger.debug("Loading data")
         try:
             async with aiohttp.ClientSession() as session:
                 self.star_systems = await self.fetch_data(session, "/star_systems")
@@ -181,6 +207,7 @@ class UexcorpTrader(QWidget):
         except Exception as e:
             self.log_api_output(f"Error loading initial data: {e}", level=logging.ERROR)
 
+    @log_function_call
     async def fetch_data(self, session, endpoint, params=None):
         url = f"{API_BASE_URL}{endpoint}"
         self.log_api_output(f"API Request: GET {url} {params if params else ''}", level=logging.DEBUG)
@@ -198,6 +225,7 @@ class UexcorpTrader(QWidget):
             self.log_api_output(f"Error during API request to {url}: {e}", level=logging.ERROR)
             return []
 
+    @log_function_call
     def update_system_combos(self):
         self.log_api_output("Updating system combos...", level=logging.INFO)
         for combo in [self.findChild(QComboBox, "system_combo"), self.findChild(QComboBox, "sell_system_combo")]:
@@ -208,15 +236,15 @@ class UexcorpTrader(QWidget):
                         combo.addItem(star_system["name"], star_system["id"])
         self.log_api_output("System combos updated.", level=logging.INFO)
 
+    @log_function_call
     def update_planets(self, system_combo):
-        self.logger.debug("Updating planets")
         system_id = system_combo.currentData()
         self.logger.debug(f"Selected system ID: {system_id}")
         if system_id:
             asyncio.ensure_future(self.update_planets_async(system_id, system_combo))
 
+    @log_function_call
     async def update_planets_async(self, system_id, system_combo):
-        self.logger.debug("Updating planets asynchronously")
         try:
             async with aiohttp.ClientSession() as session:
                 self.planets = await self.fetch_data(session, "/planets", params={'id_star_system': system_id})
@@ -224,8 +252,8 @@ class UexcorpTrader(QWidget):
         except Exception as e:
             self.log_api_output(f"Error loading planets: {e}", level=logging.ERROR)
 
+    @log_function_call
     def update_planet_combo(self, system_combo):
-        self.logger.debug("Updating planet combo")
         planet_combo = system_combo.parent().findChild(QComboBox, "planet_combo")
         if planet_combo:
             planet_combo.clear()
@@ -233,15 +261,15 @@ class UexcorpTrader(QWidget):
                 planet_combo.addItem(planet["name"], planet["id"])
         self.logger.debug(f"Planets updated: {self.planets}")
 
+    @log_function_call
     def update_terminals(self, planet_combo):
-        self.logger.debug("Updating terminals")
         planet_id = planet_combo.currentData()
         self.logger.debug(f"Selected planet ID: {planet_id}")
         if planet_id:
             asyncio.ensure_future(self.update_terminals_async(planet_id, planet_combo))
 
+    @log_function_call
     async def update_terminals_async(self, planet_id, planet_combo):
-        self.logger.debug("Updating terminals asynchronously")
         try:
             async with aiohttp.ClientSession() as session:
                 self.terminals = await self.fetch_data(session, "/terminals", params={'id_planet': planet_id})
@@ -249,8 +277,8 @@ class UexcorpTrader(QWidget):
         except Exception as e:
             self.log_api_output(f"Error loading terminals: {e}", level=logging.ERROR)
 
+    @log_function_call
     def update_terminal_combo(self, planet_combo):
-        self.logger.debug("Updating terminal combo")
         terminal_combo = planet_combo.parent().findChild(QComboBox, "terminal_combo")
         if terminal_combo:
             terminal_combo.clear()
@@ -258,15 +286,15 @@ class UexcorpTrader(QWidget):
                 terminal_combo.addItem(terminal["name"], terminal["id"])
         self.logger.debug(f"Terminals updated: {self.terminals}")
 
+    @log_function_call
     def update_commodities(self, terminal_combo):
-        self.logger.debug("Updating commodities")
         terminal_id = terminal_combo.currentData()
         self.logger.debug(f"Selected terminal ID: {terminal_id}")
         if terminal_id:
             asyncio.ensure_future(self.update_commodities_async(terminal_id, terminal_combo))
 
+    @log_function_call
     async def update_commodities_async(self, terminal_id, terminal_combo):
-        self.logger.debug("Updating commodities asynchronously")
         try:
             async with aiohttp.ClientSession() as session:
                 self.commodities = await self.fetch_data(session, "/commodities_prices", params={'id_terminal': terminal_id})
@@ -274,8 +302,8 @@ class UexcorpTrader(QWidget):
         except Exception as e:
             self.log_api_output(f"Error loading commodities: {e}", level=logging.ERROR)
 
+    @log_function_call
     def update_commodity_combo(self, terminal_combo):
-        self.logger.debug("Updating commodity combo")
         commodity_combo = terminal_combo.parent().findChild(QComboBox, "commodity_combo")
         if commodity_combo:
             commodity_combo.clear()
@@ -283,16 +311,16 @@ class UexcorpTrader(QWidget):
                 commodity_combo.addItem(commodity["commodity_name"], commodity["id_commodity"])
         self.logger.debug(f"Commodities updated: {self.commodities}")
 
+    @log_function_call
     def update_price(self, commodity_combo, terminal_combo):
-        self.logger.debug("Updating price")
         commodity_id = commodity_combo.currentData()
         terminal_id = terminal_combo.currentData()
         self.logger.debug(f"Selected commodity ID: {commodity_id}, terminal ID: {terminal_id}")
         if commodity_id and terminal_id:
             asyncio.ensure_future(self.update_price_async(commodity_id, terminal_id, commodity_combo))
 
+    @log_function_call
     async def update_price_async(self, commodity_id, terminal_id, commodity_combo):
-        self.logger.debug("Updating price asynchronously")
         try:
             async with aiohttp.ClientSession() as session:
                 prices = await self.fetch_data(session, "/commodities_prices", params={'id_commodity': commodity_id, 'id_terminal': terminal_id})
@@ -303,8 +331,8 @@ class UexcorpTrader(QWidget):
         except Exception as e:
             self.log_api_output(f"Error loading prices: {e}", level=logging.ERROR)
 
+    @log_function_call
     def save_configuration(self):
-        self.logger.debug("Saving configuration")
         self.api_key = self.api_key_input.text()
         self.config_manager.set_api_key(self.api_key)
         self.is_production = self.is_production_input.currentText() == "True"
@@ -318,16 +346,16 @@ class UexcorpTrader(QWidget):
 
         QMessageBox.information(self, "Configuration", "Configuration saved successfully!")
 
+    @log_function_call
     async def buy_commodity(self, system_combo, planet_combo, terminal_combo, commodity_combo, amount_input, price_input):
-        self.logger.debug("Buying commodity")
         await self.perform_trade("buy", system_combo, planet_combo, terminal_combo, commodity_combo, amount_input, price_input)
 
+    @log_function_call
     async def sell_commodity(self, system_combo, planet_combo, terminal_combo, commodity_combo, amount_input, price_input):
-        self.logger.debug("Selling commodity")
         await self.perform_trade("sell", system_combo, planet_combo, terminal_combo, commodity_combo, amount_input, price_input)
 
+    @log_function_call
     async def perform_trade(self, operation, system_combo, planet_combo, terminal_combo, commodity_combo, amount_input, price_input):
-        self.logger.debug(f"Performing trade: {operation}")
         try:
             terminal_id = terminal_combo.currentData()
             commodity_id = commodity_combo.currentData()
@@ -372,6 +400,7 @@ class UexcorpTrader(QWidget):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred: {e}")
 
+    @log_function_call
     def log_api_output(self, message, level=logging.INFO):
         self.logger.log(level, message)
 
