@@ -65,7 +65,7 @@ class UexcorpTrader(QWidget):
 
         # Configure logging based on the debug setting
         logging_level = logging.DEBUG if self.debug else logging.INFO
-        logging.basicConfig(level=logging_level, format='%(asctime)s - %(levelname)s - %(message)s')
+        logging.basicConfig(level=logging_level, format='%(asctime)s - %(levelname)s - %(message)s - %(filename)s:%(lineno)d')
         self.logger = logging.getLogger(__name__)
 
         self.star_systems = []
