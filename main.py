@@ -41,12 +41,20 @@ class ConfigManager:
         self.config["API"] = {"key": key}
         self.save_config()
 
+    def get_is_production(self):
+        return self.config.getboolean("SETTINGS", "is_production", fallback=False)
+
+    def set_is_production(self, is_production):
+        self.config["SETTINGS"] = {"is_production": str(is_production)}
+        self.save_config()
+
 
 class UexcorpTrader(QWidget):
     def __init__(self):
         super().__init__()
         self.config_manager = ConfigManager()
         self.api_key = self.config_manager.get_api_key()
+        self.is_production = self.config_manager.get_is_production()
         self.star_systems = []
         self.planets = []
         self.terminals = []
@@ -82,9 +90,19 @@ class UexcorpTrader(QWidget):
         save_api_key_button = QPushButton("Save API Key")
         save_api_key_button.clicked.connect(self.save_api_key)
 
+        is_production_label = QLabel("Is Production:")
+        self.is_production_input = QComboBox()
+        self.is_production_input.addItems(["False", "True"])
+        self.is_production_input.setCurrentText(str(self.is_production))
+        save_is_production_button = QPushButton("Save Is Production")
+        save_is_production_button.clicked.connect(self.save_is_production)
+
         layout.addWidget(api_key_label)
         layout.addWidget(self.api_key_input)
         layout.addWidget(save_api_key_button)
+        layout.addWidget(is_production_label)
+        layout.addWidget(self.is_production_input)
+        layout.addWidget(save_is_production_button)
 
         config_tab.setLayout(layout)
         return config_tab
@@ -250,6 +268,11 @@ class UexcorpTrader(QWidget):
         self.config_manager.set_api_key(self.api_key)
         QMessageBox.information(self, "API Key", "API key saved successfully!")
 
+    def save_is_production(self):
+        self.is_production = self.is_production_input.currentText() == "True"
+        self.config_manager.set_is_production(self.is_production)
+        QMessageBox.information(self, "Is Production", "Is Production saved successfully!")
+
     async def buy_commodity(self, system_combo, planet_combo, terminal_combo, commodity_combo, amount_input, price_input):
         await self.perform_trade("buy", system_combo, planet_combo, terminal_combo, commodity_combo, amount_input, price_input)
 
@@ -272,13 +295,19 @@ class UexcorpTrader(QWidget):
             if not re.match(r'^\d+(\.\d{1,2})?$', price):
                 raise ValueError("Price must be a valid number with up to 2 decimal places.")
 
+            # Validate terminal and commodity
+            if not any(terminal["id"] == terminal_id for terminal in self.terminals):
+                raise ValueError("Selected terminal does not exist.")
+            if not any(commodity["id_commodity"] == commodity_id for commodity in self.commodities):
+                raise ValueError("Selected commodity does not exist on this terminal.")
+
             data = {
                 "id_terminal": terminal_id,
                 "id_commodity": commodity_id,
                 "operation": operation,
                 "scu": int(amount),
                 "price": float(price),
-                "is_production": 0,  # Assuming not production
+                "is_production": int(self.is_production),  # Use the loaded configuration boolean
             }
 
             self.log_api_output(f"API Request: POST {API_BASE_URL}/user_trades_add/ {data}")
