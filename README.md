@@ -19,11 +19,11 @@ This application is a simple trading tool for the UEXcorp API. It allows you to:
 ## Installation and Startup
 
 1. Clone the repository: 
-   `git clone https://github.com/yourusername/your-repository.git`
+   `git clone https://github.com/Hybris95/UEX-Trader.git`
    (Replace with your repository URL)
 
 2. Navigate to the project directory: 
-   `cd your-repository`
+   `cd UEX-Trader`
 
 3. Run the application: 
    `python main.py`
