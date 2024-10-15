@@ -310,7 +310,7 @@ class UexcorpTrader(QWidget):
     def update_terminal_combo(self):
         self.terminal_combo.clear()
         for terminal in self.terminals.get("data", []):
-            if terminal.get("is_available") == 1:
+            if terminal.get("is_available") == 1 and terminal.get("type") == "commodity":
                 self.terminal_combo.addItem(terminal["name"], terminal["id"])
         self.logger.debug(f"Terminals updated: {self.terminals}")
 
@@ -318,7 +318,7 @@ class UexcorpTrader(QWidget):
     def filter_terminals(self, text):
         self.terminal_combo.clear()
         for terminal in self.terminals.get("data", []):
-            if terminal.get("is_available") == 1 and text.lower() in terminal["name"].lower():
+            if terminal.get("is_available") == 1 and terminal.get("type") == "commodity" and text.lower() in terminal["name"].lower():
                 self.terminal_combo.addItem(terminal["name"], terminal["id"])
         # Ensure the first item is selected if available
         if self.terminal_combo.count() > 0:
