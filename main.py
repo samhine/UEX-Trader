@@ -17,6 +17,7 @@ from PyQt5.QtCore import Qt
 import configparser
 import aiohttp
 import re
+from qasync import QEventLoop, asyncSlot
 
 API_BASE_URL = "https://uexcorp.space/api/2.0"
 
@@ -408,6 +409,11 @@ class UexcorpTrader(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    loop = QEventLoop(app)
+    asyncio.set_event_loop(loop)
+
     trader = UexcorpTrader()
     trader.show()
-    sys.exit(app.exec_())
+
+    with loop:
+        loop.run_forever()
