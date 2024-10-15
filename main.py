@@ -48,6 +48,13 @@ class ConfigManager:
         self.config["SETTINGS"] = {"is_production": str(is_production)}
         self.save_config()
 
+    def get_debug(self):
+        return self.config.getboolean("SETTINGS", "debug", fallback=False)
+
+    def set_debug(self, debug):
+        self.config["SETTINGS"]["debug"] = str(debug)
+        self.save_config()
+
 
 class UexcorpTrader(QWidget):
     def __init__(self):
@@ -55,6 +62,7 @@ class UexcorpTrader(QWidget):
         self.config_manager = ConfigManager()
         self.api_key = self.config_manager.get_api_key()
         self.is_production = self.config_manager.get_is_production()
+        self.debug = self.config_manager.get_debug()
         self.star_systems = []
         self.planets = []
         self.terminals = []
@@ -93,6 +101,11 @@ class UexcorpTrader(QWidget):
         self.is_production_input.addItems(["False", "True"])
         self.is_production_input.setCurrentText(str(self.is_production))
 
+        debug_label = QLabel("Debug Mode:")
+        self.debug_input = QComboBox()
+        self.debug_input.addItems(["False", "True"])
+        self.debug_input.setCurrentText(str(self.debug))
+
         save_config_button = QPushButton("Save Configuration")
         save_config_button.clicked.connect(self.save_configuration)
 
@@ -100,6 +113,8 @@ class UexcorpTrader(QWidget):
         layout.addWidget(self.api_key_input)
         layout.addWidget(is_production_label)
         layout.addWidget(self.is_production_input)
+        layout.addWidget(debug_label)
+        layout.addWidget(self.debug_input)
         layout.addWidget(save_config_button)
 
         config_tab.setLayout(layout)
@@ -270,6 +285,8 @@ class UexcorpTrader(QWidget):
         self.config_manager.set_api_key(self.api_key)
         self.is_production = self.is_production_input.currentText() == "True"
         self.config_manager.set_is_production(self.is_production)
+        self.debug = self.debug_input.currentText() == "True"
+        self.config_manager.set_debug(self.debug)
         QMessageBox.information(self, "Configuration", "Configuration saved successfully!")
 
     async def buy_commodity(self, system_combo, planet_combo, terminal_combo, commodity_combo, amount_input, price_input):
@@ -324,7 +341,8 @@ class UexcorpTrader(QWidget):
             QMessageBox.critical(self, "Error", f"An error occurred: {e}")
 
     def log_api_output(self, message):
-        self.api_output.append(message)
+        if self.debug:
+            self.api_output.append(message)
 
 
 if __name__ == "__main__":
