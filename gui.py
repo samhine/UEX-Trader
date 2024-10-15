@@ -79,6 +79,7 @@ class UexcorpTrader(QWidget):
 
         api_key_label = QLabel("UEXcorp API Key:")
         self.api_key_input = QLineEdit(self.api_key)
+        self.api_key_input.setEchoMode(QLineEdit.Password)  # Hide the api key
 
         secret_key_label = QLabel("UEXcorp Secret Key:")
         self.secret_key_input = QLineEdit(self.config_manager.get_secret_key())
