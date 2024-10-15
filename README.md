@@ -59,7 +59,8 @@ Before you begin, ensure you have met the following requirements:
 
 1. **Open the Configuration tab:**
 
-   - **UEXcorp API Key:** Enter your UEXcorp API key.
+   - **UEXcorp API Key:** Enter your UEXcorp App Access Token ( you first have to create an App on UEXCorp : https://uexcorp.space/api/apps ).
+   - **UEXcorp Secret Key:** Enter your UEXcorp Secret key ( Account for UEXcorp required : https://uexcorp.space/account/home/tab/account_main/ )
    - **Is Production:** Toggle between `True` and `False` to switch between production and development environments.
    - **Debug Mode:** Toggle between `True` and `False` to enable or disable debug logging.
    - **Appearance Mode:** Select between `Light` and `Dark` modes for the application's appearance.
