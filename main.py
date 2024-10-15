@@ -105,6 +105,7 @@ class UexcorpTrader(QWidget):
 
         terminal_label = QLabel("Select Terminal:")
         terminal_combo = QComboBox()
+        terminal_combo.currentIndexChanged.connect(lambda: self.update_commodities(terminal_combo))
         layout.addWidget(terminal_label)
         layout.addWidget(terminal_combo)
 
@@ -133,10 +134,7 @@ class UexcorpTrader(QWidget):
         try:
             async with aiohttp.ClientSession() as session:
                 self.star_systems = await self.fetch_data(session, "/star_systems")
-                self.commodities = await self.fetch_data(session, "/commodities")
-
                 self.update_system_combos()
-                self.update_commodity_combos()
 
         except Exception as e:
             self.log_api_output(f"Error loading initial data: {e}")
@@ -205,12 +203,25 @@ class UexcorpTrader(QWidget):
             for terminal in self.terminals:
                 terminal_combo.addItem(terminal["name"], terminal["id"])
 
-    def update_commodity_combos(self):
-        for combo in [self.findChild(QComboBox, "commodity_combo"), self.findChild(QComboBox, "sell_commodity_combo")]:
-            if combo:
-                combo.clear()
-                for commodity in self.commodities:
-                    combo.addItem(commodity["name"], commodity["id"])
+    def update_commodities(self, terminal_combo):
+        terminal_id = terminal_combo.currentData()
+        if terminal_id:
+            asyncio.ensure_future(self.update_commodities_async(terminal_id, terminal_combo))
+
+    async def update_commodities_async(self, terminal_id, terminal_combo):
+        try:
+            async with aiohttp.ClientSession() as session:
+                self.commodities = await self.fetch_data(session, "/commodities_prices", params={'id_terminal': terminal_id})
+                self.update_commodity_combo(terminal_combo)
+        except Exception as e:
+            self.log_api_output(f"Error loading commodities: {e}")
+
+    def update_commodity_combo(self, terminal_combo):
+        commodity_combo = terminal_combo.parent().findChild(QComboBox, "commodity_combo")
+        if commodity_combo:
+            commodity_combo.clear()
+            for commodity in self.commodities:
+                commodity_combo.addItem(commodity["commodity_name"], commodity["id_commodity"])
 
     def save_api_key(self):
         self.api_key = self.api_key_input.text()
