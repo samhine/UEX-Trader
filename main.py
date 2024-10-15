@@ -108,7 +108,8 @@ class UexcorpTrader(QWidget):
     @log_function_call
     def initUI(self):
         self.setWindowTitle("UEXcorp Trader")
-        self.showFullScreen()
+        self.resize(800, 600)  # Set initial window size
+        self.setWindowFlags(Qt.Window | Qt.WindowTitleHint | Qt.WindowSystemMenuHint | Qt.WindowMinMaxButtonsHint | Qt.WindowCloseButtonHint)
 
         tabs = QTabWidget()
         tabs.addTab(self.create_config_tab(), "Configuration")
