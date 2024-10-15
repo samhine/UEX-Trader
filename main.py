@@ -76,8 +76,7 @@ class UexcorpTrader(QWidget):
         self.setLayout(main_layout)
 
         # Load data
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(self.load_data())
+        asyncio.ensure_future(self.load_data())
 
     def create_config_tab(self):
         config_tab = QWidget()
@@ -138,7 +137,7 @@ class UexcorpTrader(QWidget):
 
         # Buy Button
         buy_button = QPushButton("Buy Commodity")
-        buy_button.clicked.connect(self.buy_commodity)
+        buy_button.clicked.connect(lambda: asyncio.ensure_future(self.buy_commodity()))
         layout.addWidget(buy_button)
 
         buy_tab.setLayout(layout)
@@ -151,18 +150,14 @@ class UexcorpTrader(QWidget):
         # System Selection
         system_label = QLabel("Select System:")
         self.sell_system_combo = QComboBox()
-        self.sell_system_combo.currentIndexChanged.connect(
-            self.update_sell_planets
-        )
+        self.sell_system_combo.currentIndexChanged.connect(self.update_sell_planets)
         layout.addWidget(system_label)
         layout.addWidget(self.sell_system_combo)
 
         # Planet Selection
         planet_label = QLabel("Select Planet:")
         self.sell_planet_combo = QComboBox()
-        self.sell_planet_combo.currentIndexChanged.connect(
-            self.update_sell_terminals
-        )
+        self.sell_planet_combo.currentIndexChanged.connect(self.update_sell_terminals)
         layout.addWidget(planet_label)
         layout.addWidget(self.sell_planet_combo)
 
@@ -190,7 +185,7 @@ class UexcorpTrader(QWidget):
 
         # Sell Button
         sell_button = QPushButton("Sell Commodity")
-        sell_button.clicked.connect(self.sell_commodity)
+        sell_button.clicked.connect(lambda: asyncio.ensure_future(self.sell_commodity()))
         layout.addWidget(sell_button)
 
         sell_tab.setLayout(layout)
@@ -216,11 +211,6 @@ class UexcorpTrader(QWidget):
                 if response.status == 200:
                     data = await response.json()
                     return data
-                    if isinstance(data, list) and all(isinstance(item, dict) for item in data):
-                        return data
-                    else:
-                        self.log_api_output(f"Unexpected data format from API")
-                        return []
                 else:
                     error_message = await response.text()
                     self.log_api_output(f"API request failed with status {response.status}: {error_message}")
@@ -236,27 +226,18 @@ class UexcorpTrader(QWidget):
             if star_system["is_available"] == 1:
                 systemname = star_system["name"]
                 systemid = star_system["id"]
-                self.system_combo.addItem(
-                    systemname, systemid
-                )
-                self.sell_system_combo.addItem(
-                    systemname, systemid
-                )
+                self.system_combo.addItem(systemname, systemid)
+                self.sell_system_combo.addItem(systemname, systemid)
 
     def update_planets(self):
         system_id = self.system_combo.currentData()
         if system_id:
-            loop = asyncio.new_event_loop()
-            loop.run_until_complete(
-                self.update_planets_async(system_id)
-            )
+            asyncio.ensure_future(self.update_planets_async(system_id))
 
     async def update_planets_async(self, system_id):
         try:
             async with aiohttp.ClientSession() as session:
-                self.planets = await self.fetch_data(
-                    session, "/planets", params={'id_star_system': system_id}
-                )
+                self.planets = await self.fetch_data(session, "/planets", params={'id_star_system': system_id})
                 self.update_planet_combo()
         except Exception as e:
             self.log_api_output(f"Error loading planets: {e}")
@@ -264,17 +245,12 @@ class UexcorpTrader(QWidget):
     def update_sell_planets(self):
         system_id = self.sell_system_combo.currentData()
         if system_id:
-            loop = asyncio.new_event_loop()
-            loop.run_until_complete(
-                self.update_sell_planets_async(system_id)
-            )
+            asyncio.ensure_future(self.update_sell_planets_async(system_id))
 
     async def update_sell_planets_async(self, system_id):
         try:
             async with aiohttp.ClientSession() as session:
-                self.planets = await self.fetch_data(
-                    session, "/planets", params={'id_star_system': system_id}
-                )
+                self.planets = await self.fetch_data(session, "/planets", params={'id_star_system': system_id})
                 self.update_sell_planet_combo()
         except Exception as e:
             self.log_api_output(f"Error loading planets: {e}")
@@ -292,17 +268,12 @@ class UexcorpTrader(QWidget):
     def update_terminals(self):
         planet_id = self.planet_combo.currentData()
         if planet_id:
-            loop = asyncio.new_event_loop()
-            loop.run_until_complete(
-                self.update_terminals_async(planet_id)
-            )
+            asyncio.ensure_future(self.update_terminals_async(planet_id))
 
     async def update_terminals_async(self, planet_id):
         try:
             async with aiohttp.ClientSession() as session:
-                self.terminals = await self.fetch_data(
-                    session, "/terminals", params={'id_planet': planet_id}
-                )
+                self.terminals = await self.fetch_data(session, "/terminals", params={'id_planet': planet_id})
                 self.update_terminal_combo()
         except Exception as e:
             self.log_api_output(f"Error loading terminals: {e}")
@@ -310,17 +281,12 @@ class UexcorpTrader(QWidget):
     def update_sell_terminals(self):
         planet_id = self.sell_planet_combo.currentData()
         if planet_id:
-            loop = asyncio.new_event_loop()
-            loop.run_until_complete(
-                self.update_sell_terminals_async(planet_id)
-            )
+            asyncio.ensure_future(self.update_sell_terminals_async(planet_id))
 
     async def update_sell_terminals_async(self, planet_id):
         try:
             async with aiohttp.ClientSession() as session:
-                self.terminals = await self.fetch_data(
-                    session, "/terminals", params={'id_planet': planet_id}
-                )
+                self.terminals = await self.fetch_data(session, "/terminals", params={'id_planet': planet_id})
                 self.update_sell_terminal_combo()
         except Exception as e:
             self.log_api_output(f"Error loading terminals: {e}")
@@ -333,20 +299,14 @@ class UexcorpTrader(QWidget):
     def update_sell_terminal_combo(self):
         self.sell_terminal_combo.clear()
         for terminal in self.terminals:
-            self.sell_terminal_combo.addItem(
-                terminal["name"], terminal["id"]
-            )
+            self.sell_terminal_combo.addItem(terminal["name"], terminal["id"])
 
     def update_commodity_combos(self):
         self.commodity_combo.clear()
         self.sell_commodity_combo.clear()
         for commodity in self.commodities:
-            self.commodity_combo.addItem(
-                commodity["name"], commodity["id"]
-            )
-            self.sell_commodity_combo.addItem(
-                commodity["name"], commodity["id"]
-            )
+            self.commodity_combo.addItem(commodity["name"], commodity["id"])
+            self.sell_commodity_combo.addItem(commodity["name"], commodity["id"])
 
     def save_api_key(self):
         self.api_key = self.api_key_input.text()
@@ -394,22 +354,12 @@ class UexcorpTrader(QWidget):
                 "is_production": 0,  # Assuming not production
             }
 
-            self.log_api_output(
-                f"API Request: POST {API_BASE_URL}/user_trades_add/ {data}"
-            )
-            async with aiohttp.ClientSession(
-                headers={"secret_key": self.api_key}
-            ) as session:
-                async with session.post(
-                    f"{API_BASE_URL}/user_trades_add/", json=data
-                ) as response:
+            self.log_api_output(f"API Request: POST {API_BASE_URL}/user_trades_add/ {data}")
+            async with aiohttp.ClientSession(headers={"secret_key": self.api_key}) as session:
+                async with session.post(f"{API_BASE_URL}/user_trades_add/", json=data) as response:
                     if response.status == 200:
                         result = await response.json()
-                        QMessageBox.information(
-                            self,
-                            "Success",
-                            f"Trade successful! Trade ID: {result.get('id_user_trade')}",
-                        )
+                        QMessageBox.information(self, "Success", f"Trade successful! Trade ID: {result.get('id_user_trade')}")
                     else:
                         error_message = await response.text()
                         self.log_api_output(f"API request failed with status {response.status}: {error_message}")
