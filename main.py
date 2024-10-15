@@ -155,6 +155,7 @@ class UexcorpTrader(QWidget):
         try:
             async with aiohttp.ClientSession() as session:
                 self.star_systems = await self.fetch_data(session, "/star_systems")
+                self.log_api_output(f"Star Systems Loaded: {self.star_systems}")
                 self.update_system_combos()
 
         except Exception as e:
@@ -167,6 +168,7 @@ class UexcorpTrader(QWidget):
             async with session.get(url, params=params) as response:
                 if response.status == 200:
                     data = await response.json()
+                    self.log_api_output(f"API Response: {data}")
                     return data
                 else:
                     error_message = await response.text()
@@ -177,12 +179,14 @@ class UexcorpTrader(QWidget):
             return []
 
     def update_system_combos(self):
+        self.log_api_output("Updating system combos...")
         for combo in [self.findChild(QComboBox, "system_combo"), self.findChild(QComboBox, "sell_system_combo")]:
             if combo:
                 combo.clear()
-                for star_system in self.star_systems["data"]:
-                    if star_system["is_available"] == 1:
+                for star_system in self.star_systems.get("data", []):
+                    if star_system.get("is_available") == 1:
                         combo.addItem(star_system["name"], star_system["id"])
+        self.log_api_output("System combos updated.")
 
     def update_planets(self, system_combo):
         system_id = system_combo.currentData()
