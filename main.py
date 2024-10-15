@@ -339,7 +339,7 @@ class UexcorpTrader(QWidget):
             self.log_api_output(f"Error loading prices: {e}", level=logging.ERROR)
 
     @log_function_call
-    def save_configuration(self):
+    def save_configuration(self, event=None):
         self.api_key = self.api_key_input.text()
         self.config_manager.set_api_key(self.api_key)
         self.is_production = self.is_production_input.currentText() == "True"
