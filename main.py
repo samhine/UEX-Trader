@@ -4,7 +4,6 @@ from PyQt5.QtWidgets import (
     QApplication,
     QWidget,
     QVBoxLayout,
-    QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
@@ -55,34 +54,27 @@ class UexcorpTrader(QWidget):
 
     def initUI(self):
         self.setWindowTitle("UEXcorp Trader")
-
-        # Make window resizable and fullscreen
         self.showFullScreen()
 
-        # Create tabs
         tabs = QTabWidget()
         tabs.addTab(self.create_config_tab(), "Configuration")
-        tabs.addTab(self.create_buy_tab(), "Buy Commodity")
-        tabs.addTab(self.create_sell_tab(), "Sell Commodity")
+        tabs.addTab(self.create_trade_tab("Buy Commodity", self.buy_commodity), "Buy Commodity")
+        tabs.addTab(self.create_trade_tab("Sell Commodity", self.sell_commodity), "Sell Commodity")
 
-        # API Output
         self.api_output = QTextEdit()
         self.api_output.setReadOnly(True)
 
-        # Layout
         main_layout = QVBoxLayout()
         main_layout.addWidget(tabs)
         main_layout.addWidget(self.api_output)
         self.setLayout(main_layout)
 
-        # Load data
         asyncio.ensure_future(self.load_data())
 
     def create_config_tab(self):
         config_tab = QWidget()
         layout = QVBoxLayout()
 
-        # API Key
         api_key_label = QLabel("UEXcorp API Key:")
         self.api_key_input = QLineEdit(self.api_key)
         save_api_key_button = QPushButton("Save API Key")
@@ -95,101 +87,47 @@ class UexcorpTrader(QWidget):
         config_tab.setLayout(layout)
         return config_tab
 
-    def create_buy_tab(self):
-        buy_tab = QWidget()
+    def create_trade_tab(self, title, trade_function):
+        trade_tab = QWidget()
         layout = QVBoxLayout()
 
-        # System Selection
         system_label = QLabel("Select System:")
-        self.system_combo = QComboBox()
-        self.system_combo.currentIndexChanged.connect(self.update_planets)
+        system_combo = QComboBox()
+        system_combo.currentIndexChanged.connect(lambda: self.update_planets(system_combo))
         layout.addWidget(system_label)
-        layout.addWidget(self.system_combo)
+        layout.addWidget(system_combo)
 
-        # Planet Selection
         planet_label = QLabel("Select Planet:")
-        self.planet_combo = QComboBox()
-        self.planet_combo.currentIndexChanged.connect(self.update_terminals)
+        planet_combo = QComboBox()
+        planet_combo.currentIndexChanged.connect(lambda: self.update_terminals(planet_combo))
         layout.addWidget(planet_label)
-        layout.addWidget(self.planet_combo)
+        layout.addWidget(planet_combo)
 
-        # Terminal Selection
         terminal_label = QLabel("Select Terminal:")
-        self.terminal_combo = QComboBox()
+        terminal_combo = QComboBox()
         layout.addWidget(terminal_label)
-        layout.addWidget(self.terminal_combo)
+        layout.addWidget(terminal_combo)
 
-        # Commodity Selection
         commodity_label = QLabel("Select Commodity:")
-        self.commodity_combo = QComboBox()
+        commodity_combo = QComboBox()
         layout.addWidget(commodity_label)
-        layout.addWidget(self.commodity_combo)
+        layout.addWidget(commodity_combo)
 
-        # Amount and Price
         amount_label = QLabel("Amount (SCU):")
-        self.amount_input = QLineEdit()
+        amount_input = QLineEdit()
         price_label = QLabel("Price (UEC/SCU):")
-        self.price_input = QLineEdit()
+        price_input = QLineEdit()
         layout.addWidget(amount_label)
-        layout.addWidget(self.amount_input)
+        layout.addWidget(amount_input)
         layout.addWidget(price_label)
-        layout.addWidget(self.price_input)
+        layout.addWidget(price_input)
 
-        # Buy Button
-        buy_button = QPushButton("Buy Commodity")
-        buy_button.clicked.connect(lambda: asyncio.ensure_future(self.buy_commodity()))
-        layout.addWidget(buy_button)
+        trade_button = QPushButton(title)
+        trade_button.clicked.connect(lambda: asyncio.ensure_future(trade_function(system_combo, planet_combo, terminal_combo, commodity_combo, amount_input, price_input)))
+        layout.addWidget(trade_button)
 
-        buy_tab.setLayout(layout)
-        return buy_tab
-
-    def create_sell_tab(self):
-        sell_tab = QWidget()
-        layout = QVBoxLayout()
-
-        # System Selection
-        system_label = QLabel("Select System:")
-        self.sell_system_combo = QComboBox()
-        self.sell_system_combo.currentIndexChanged.connect(self.update_sell_planets)
-        layout.addWidget(system_label)
-        layout.addWidget(self.sell_system_combo)
-
-        # Planet Selection
-        planet_label = QLabel("Select Planet:")
-        self.sell_planet_combo = QComboBox()
-        self.sell_planet_combo.currentIndexChanged.connect(self.update_sell_terminals)
-        layout.addWidget(planet_label)
-        layout.addWidget(self.sell_planet_combo)
-
-        # Terminal Selection
-        terminal_label = QLabel("Select Terminal:")
-        self.sell_terminal_combo = QComboBox()
-        layout.addWidget(terminal_label)
-        layout.addWidget(self.sell_terminal_combo)
-
-        # Commodity Selection
-        commodity_label = QLabel("Select Commodity:")
-        self.sell_commodity_combo = QComboBox()
-        layout.addWidget(commodity_label)
-        layout.addWidget(self.sell_commodity_combo)
-
-        # Amount and Price
-        amount_label = QLabel("Amount (SCU):")
-        self.sell_amount_input = QLineEdit()
-        price_label = QLabel("Price (UEC/SCU):")
-        self.sell_price_input = QLineEdit()
-        layout.addWidget(amount_label)
-        layout.addWidget(self.sell_amount_input)
-        layout.addWidget(price_label)
-        layout.addWidget(self.sell_price_input)
-
-        # Sell Button
-        sell_button = QPushButton("Sell Commodity")
-        sell_button.clicked.connect(lambda: asyncio.ensure_future(self.sell_commodity()))
-        layout.addWidget(sell_button)
-
-        sell_tab.setLayout(layout)
-        return sell_tab
+        trade_tab.setLayout(layout)
+        return trade_tab
 
     async def load_data(self):
         try:
@@ -220,127 +158,77 @@ class UexcorpTrader(QWidget):
             return []
 
     def update_system_combos(self):
-        self.system_combo.clear()
-        self.sell_system_combo.clear()
-        for star_system in self.star_systems["data"]:
-            if star_system["is_available"] == 1:
-                systemname = star_system["name"]
-                systemid = star_system["id"]
-                self.system_combo.addItem(systemname, systemid)
-                self.sell_system_combo.addItem(systemname, systemid)
+        for combo in [self.findChild(QComboBox, "system_combo"), self.findChild(QComboBox, "sell_system_combo")]:
+            if combo:
+                combo.clear()
+                for star_system in self.star_systems["data"]:
+                    if star_system["is_available"] == 1:
+                        combo.addItem(star_system["name"], star_system["id"])
 
-    def update_planets(self):
-        system_id = self.system_combo.currentData()
+    def update_planets(self, system_combo):
+        system_id = system_combo.currentData()
         if system_id:
-            asyncio.ensure_future(self.update_planets_async(system_id))
+            asyncio.ensure_future(self.update_planets_async(system_id, system_combo))
 
-    async def update_planets_async(self, system_id):
+    async def update_planets_async(self, system_id, system_combo):
         try:
             async with aiohttp.ClientSession() as session:
                 self.planets = await self.fetch_data(session, "/planets", params={'id_star_system': system_id})
-                self.update_planet_combo()
+                self.update_planet_combo(system_combo)
         except Exception as e:
             self.log_api_output(f"Error loading planets: {e}")
 
-    def update_sell_planets(self):
-        system_id = self.sell_system_combo.currentData()
-        if system_id:
-            asyncio.ensure_future(self.update_sell_planets_async(system_id))
+    def update_planet_combo(self, system_combo):
+        planet_combo = system_combo.parent().findChild(QComboBox, "planet_combo")
+        if planet_combo:
+            planet_combo.clear()
+            for planet in self.planets:
+                planet_combo.addItem(planet["name"], planet["id"])
 
-    async def update_sell_planets_async(self, system_id):
-        try:
-            async with aiohttp.ClientSession() as session:
-                self.planets = await self.fetch_data(session, "/planets", params={'id_star_system': system_id})
-                self.update_sell_planet_combo()
-        except Exception as e:
-            self.log_api_output(f"Error loading planets: {e}")
-
-    def update_planet_combo(self):
-        self.planet_combo.clear()
-        for planet in self.planets:
-            self.planet_combo.addItem(planet["name"], planet["id"])
-
-    def update_sell_planet_combo(self):
-        self.sell_planet_combo.clear()
-        for planet in self.planets:
-            self.sell_planet_combo.addItem(planet["name"], planet["id"])
-
-    def update_terminals(self):
-        planet_id = self.planet_combo.currentData()
+    def update_terminals(self, planet_combo):
+        planet_id = planet_combo.currentData()
         if planet_id:
-            asyncio.ensure_future(self.update_terminals_async(planet_id))
+            asyncio.ensure_future(self.update_terminals_async(planet_id, planet_combo))
 
-    async def update_terminals_async(self, planet_id):
+    async def update_terminals_async(self, planet_id, planet_combo):
         try:
             async with aiohttp.ClientSession() as session:
                 self.terminals = await self.fetch_data(session, "/terminals", params={'id_planet': planet_id})
-                self.update_terminal_combo()
+                self.update_terminal_combo(planet_combo)
         except Exception as e:
             self.log_api_output(f"Error loading terminals: {e}")
 
-    def update_sell_terminals(self):
-        planet_id = self.sell_planet_combo.currentData()
-        if planet_id:
-            asyncio.ensure_future(self.update_sell_terminals_async(planet_id))
-
-    async def update_sell_terminals_async(self, planet_id):
-        try:
-            async with aiohttp.ClientSession() as session:
-                self.terminals = await self.fetch_data(session, "/terminals", params={'id_planet': planet_id})
-                self.update_sell_terminal_combo()
-        except Exception as e:
-            self.log_api_output(f"Error loading terminals: {e}")
-
-    def update_terminal_combo(self):
-        self.terminal_combo.clear()
-        for terminal in self.terminals:
-            self.terminal_combo.addItem(terminal["name"], terminal["id"])
-
-    def update_sell_terminal_combo(self):
-        self.sell_terminal_combo.clear()
-        for terminal in self.terminals:
-            self.sell_terminal_combo.addItem(terminal["name"], terminal["id"])
+    def update_terminal_combo(self, planet_combo):
+        terminal_combo = planet_combo.parent().findChild(QComboBox, "terminal_combo")
+        if terminal_combo:
+            terminal_combo.clear()
+            for terminal in self.terminals:
+                terminal_combo.addItem(terminal["name"], terminal["id"])
 
     def update_commodity_combos(self):
-        self.commodity_combo.clear()
-        self.sell_commodity_combo.clear()
-        for commodity in self.commodities:
-            self.commodity_combo.addItem(commodity["name"], commodity["id"])
-            self.sell_commodity_combo.addItem(commodity["name"], commodity["id"])
+        for combo in [self.findChild(QComboBox, "commodity_combo"), self.findChild(QComboBox, "sell_commodity_combo")]:
+            if combo:
+                combo.clear()
+                for commodity in self.commodities:
+                    combo.addItem(commodity["name"], commodity["id"])
 
     def save_api_key(self):
         self.api_key = self.api_key_input.text()
         self.config_manager.set_api_key(self.api_key)
         QMessageBox.information(self, "API Key", "API key saved successfully!")
 
-    async def buy_commodity(self):
-        await self.perform_trade("buy")
+    async def buy_commodity(self, system_combo, planet_combo, terminal_combo, commodity_combo, amount_input, price_input):
+        await self.perform_trade("buy", system_combo, planet_combo, terminal_combo, commodity_combo, amount_input, price_input)
 
-    async def sell_commodity(self):
-        await self.perform_trade("sell")
+    async def sell_commodity(self, system_combo, planet_combo, terminal_combo, commodity_combo, amount_input, price_input):
+        await self.perform_trade("sell", system_combo, planet_combo, terminal_combo, commodity_combo, amount_input, price_input)
 
-    async def perform_trade(self, operation):
+    async def perform_trade(self, operation, system_combo, planet_combo, terminal_combo, commodity_combo, amount_input, price_input):
         try:
-            terminal_id = (
-                self.terminal_combo.currentData()
-                if operation == "buy"
-                else self.sell_terminal_combo.currentData()
-            )
-            commodity_id = (
-                self.commodity_combo.currentData()
-                if operation == "buy"
-                else self.sell_commodity_combo.currentData()
-            )
-            amount = (
-                int(self.amount_input.text())
-                if operation == "buy"
-                else int(self.sell_amount_input.text())
-            )
-            price = (
-                float(self.price_input.text())
-                if operation == "buy"
-                else float(self.sell_price_input.text())
-            )
+            terminal_id = terminal_combo.currentData()
+            commodity_id = commodity_combo.currentData()
+            amount = int(amount_input.text())
+            price = float(price_input.text())
 
             if not all([terminal_id, commodity_id, amount, price]):
                 raise ValueError("Please fill all fields.")
