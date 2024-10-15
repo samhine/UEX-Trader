@@ -111,6 +111,7 @@ class UexcorpTrader(QWidget):
 
         commodity_label = QLabel("Select Commodity:")
         commodity_combo = QComboBox()
+        commodity_combo.currentIndexChanged.connect(lambda: self.update_price(commodity_combo, terminal_combo))
         layout.addWidget(commodity_label)
         layout.addWidget(commodity_combo)
 
@@ -222,6 +223,23 @@ class UexcorpTrader(QWidget):
             commodity_combo.clear()
             for commodity in self.commodities:
                 commodity_combo.addItem(commodity["commodity_name"], commodity["id_commodity"])
+
+    def update_price(self, commodity_combo, terminal_combo):
+        commodity_id = commodity_combo.currentData()
+        terminal_id = terminal_combo.currentData()
+        if commodity_id and terminal_id:
+            asyncio.ensure_future(self.update_price_async(commodity_id, terminal_id, commodity_combo))
+
+    async def update_price_async(self, commodity_id, terminal_id, commodity_combo):
+        try:
+            async with aiohttp.ClientSession() as session:
+                prices = await self.fetch_data(session, "/commodities_prices", params={'id_commodity': commodity_id, 'id_terminal': terminal_id})
+                if prices:
+                    price_input = commodity_combo.parent().findChild(QLineEdit, "price_input")
+                    if price_input:
+                        price_input.setText(str(prices[0]["price_sell"] if prices[0]["price_sell"] else prices[0]["price_buy"]))
+        except Exception as e:
+            self.log_api_output(f"Error loading prices: {e}")
 
     def save_api_key(self):
         self.api_key = self.api_key_input.text()
