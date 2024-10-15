@@ -113,8 +113,7 @@ class UexcorpTrader(QWidget):
 
         tabs = QTabWidget()
         tabs.addTab(self.create_config_tab(), "Configuration")
-        tabs.addTab(self.create_trade_tab("Buy Commodity", self.buy_commodity), "Buy Commodity")
-        tabs.addTab(self.create_trade_tab("Sell Commodity", self.sell_commodity), "Sell Commodity")
+        tabs.addTab(self.create_trade_tab(), "Trade Commodity")
 
         main_layout = QVBoxLayout()
         main_layout.addWidget(tabs)
@@ -156,48 +155,52 @@ class UexcorpTrader(QWidget):
         return config_tab
 
     @log_function_call
-    def create_trade_tab(self, title, trade_function):
+    def create_trade_tab(self):
         trade_tab = QWidget()
         layout = QVBoxLayout()
 
         system_label = QLabel("Select System:")
-        system_combo = QComboBox()
-        system_combo.currentIndexChanged.connect(lambda: self.update_planets(system_combo))
+        self.system_combo = QComboBox()
+        self.system_combo.currentIndexChanged.connect(lambda: self.update_planets(self.system_combo))
         layout.addWidget(system_label)
-        layout.addWidget(system_combo)
+        layout.addWidget(self.system_combo)
 
         planet_label = QLabel("Select Planet:")
-        planet_combo = QComboBox()
-        planet_combo.currentIndexChanged.connect(lambda: self.update_terminals(planet_combo))
+        self.planet_combo = QComboBox()
+        self.planet_combo.currentIndexChanged.connect(lambda: self.update_terminals(self.planet_combo))
         layout.addWidget(planet_label)
-        layout.addWidget(planet_combo)
+        layout.addWidget(self.planet_combo)
 
         terminal_label = QLabel("Select Terminal:")
-        terminal_combo = QComboBox()
-        terminal_combo.currentIndexChanged.connect(lambda: self.update_commodities(terminal_combo))
+        self.terminal_combo = QComboBox()
+        self.terminal_combo.currentIndexChanged.connect(lambda: self.update_commodities(self.terminal_combo))
         layout.addWidget(terminal_label)
-        layout.addWidget(terminal_combo)
+        layout.addWidget(self.terminal_combo)
 
         commodity_label = QLabel("Select Commodity:")
-        commodity_combo = QComboBox()
-        commodity_combo.currentIndexChanged.connect(lambda: self.update_price(commodity_combo, terminal_combo))
+        self.commodity_combo = QComboBox()
+        self.commodity_combo.currentIndexChanged.connect(lambda: self.update_price(self.commodity_combo, self.terminal_combo))
         layout.addWidget(commodity_label)
-        layout.addWidget(commodity_combo)
+        layout.addWidget(self.commodity_combo)
 
         amount_label = QLabel("Amount (SCU):")
-        amount_input = QLineEdit()
-        amount_input.setValidator(QIntValidator(0, 1000000))  # Allow only integers
+        self.amount_input = QLineEdit()
+        self.amount_input.setValidator(QIntValidator(0, 1000000))  # Allow only integers
         price_label = QLabel("Price (UEC/SCU):")
-        price_input = QLineEdit()
-        price_input.setValidator(QDoubleValidator(0.0, 1000000.0, 2))  # Allow only floating-point numbers with 2 decimal places
+        self.price_input = QLineEdit()
+        self.price_input.setValidator(QDoubleValidator(0.0, 1000000.0, 2))  # Allow only floating-point numbers with 2 decimal places
         layout.addWidget(amount_label)
-        layout.addWidget(amount_input)
+        layout.addWidget(self.amount_input)
         layout.addWidget(price_label)
-        layout.addWidget(price_input)
+        layout.addWidget(self.price_input)
 
-        trade_button = QPushButton(title)
-        trade_button.clicked.connect(lambda: asyncio.ensure_future(trade_function(system_combo, planet_combo, terminal_combo, commodity_combo, amount_input, price_input)))
-        layout.addWidget(trade_button)
+        buy_button = QPushButton("Buy Commodity")
+        buy_button.clicked.connect(lambda: asyncio.ensure_future(self.buy_commodity()))
+        layout.addWidget(buy_button)
+
+        sell_button = QPushButton("Sell Commodity")
+        sell_button.clicked.connect(lambda: asyncio.ensure_future(self.sell_commodity()))
+        layout.addWidget(sell_button)
 
         trade_tab.setLayout(layout)
         return trade_tab
@@ -234,12 +237,10 @@ class UexcorpTrader(QWidget):
     @log_function_call
     def update_system_combos(self):
         self.log_api_output("Updating system combos...", level=logging.INFO)
-        for combo in [self.findChild(QComboBox, "system_combo"), self.findChild(QComboBox, "sell_system_combo")]:
-            if combo:
-                combo.clear()
-                for star_system in self.star_systems.get("data", []):
-                    if star_system.get("is_available") == 1:
-                        combo.addItem(star_system["name"], star_system["id"])
+        self.system_combo.clear()
+        for star_system in self.star_systems.get("data", []):
+            if star_system.get("is_available") == 1:
+                self.system_combo.addItem(star_system["name"], star_system["id"])
         self.log_api_output("System combos updated.", level=logging.INFO)
 
     @log_function_call
@@ -353,20 +354,20 @@ class UexcorpTrader(QWidget):
         QMessageBox.information(self, "Configuration", "Configuration saved successfully!")
 
     @log_function_call
-    async def buy_commodity(self, system_combo, planet_combo, terminal_combo, commodity_combo, amount_input, price_input):
-        await self.perform_trade("buy", system_combo, planet_combo, terminal_combo, commodity_combo, amount_input, price_input)
+    async def buy_commodity(self):
+        await self.perform_trade("buy")
 
     @log_function_call
-    async def sell_commodity(self, system_combo, planet_combo, terminal_combo, commodity_combo, amount_input, price_input):
-        await self.perform_trade("sell", system_combo, planet_combo, terminal_combo, commodity_combo, amount_input, price_input)
+    async def sell_commodity(self):
+        await self.perform_trade("sell")
 
     @log_function_call
-    async def perform_trade(self, operation, system_combo, planet_combo, terminal_combo, commodity_combo, amount_input, price_input):
+    async def perform_trade(self, operation):
         try:
-            terminal_id = terminal_combo.currentData()
-            commodity_id = commodity_combo.currentData()
-            amount = amount_input.text()
-            price = price_input.text()
+            terminal_id = self.terminal_combo.currentData()
+            commodity_id = self.commodity_combo.currentData()
+            amount = self.amount_input.text()
+            price = self.price_input.text()
 
             if not all([terminal_id, commodity_id, amount, price]):
                 raise ValueError("Please fill all fields.")
