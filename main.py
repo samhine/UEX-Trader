@@ -177,6 +177,7 @@ class UexcorpTrader(QWidget):
         self.terminal_search_input.textChanged.connect(self.filter_terminals)
         self.terminal_combo = QComboBox()
         self.terminal_combo.setEditable(True)
+        self.terminal_combo.currentIndexChanged.connect(lambda: self.update_commodities(self.terminal_combo))
         layout.addWidget(terminal_label)
         layout.addWidget(self.terminal_search_input)
         layout.addWidget(self.terminal_combo)
@@ -299,6 +300,10 @@ class UexcorpTrader(QWidget):
         for terminal in self.terminals.get("data", []):
             if text.lower() in terminal["name"].lower():
                 self.terminal_combo.addItem(terminal["name"], terminal["id"])
+        # Ensure the first item is selected if available
+        if self.terminal_combo.count() > 0:
+            self.terminal_combo.setCurrentIndex(0)
+            self.update_commodities(self.terminal_combo)
 
     @log_function_call
     def update_commodities(self, terminal_combo):
