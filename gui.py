@@ -20,6 +20,7 @@ from PyQt5.QtGui import QDoubleValidator, QIntValidator, QPalette, QColor
 from PyQt5.QtCore import Qt, QVariant
 from api import API
 from config_manager import ConfigManager
+import json
 
 # Configure the root logger at the beginning of your file
 # but don't set the level yet, it will be done later
@@ -409,11 +410,13 @@ class UexcorpTrader(QWidget):
                 "is_production": int(self.is_production),
             }
 
-            logger.info(f"API Request: POST {self.api.API_BASE_URL}/user_trades_add/ {data}")
-            result = await self.api.perform_trade(data)
+            # Serialize data to JSON with double quotes
+            json_data = json.dumps(data)
+            logger.info(f"API Request: POST {self.api.API_BASE_URL}/user_trades_add/ {json_data}")
+            result = await self.api.perform_trade(json_data)
 
-            if result and "id_user_trade" in result:
-                trade_id = result.get('id_user_trade')
+            if result and "data" in result and "id_user_trade" in result["data"]:
+                trade_id = result["data"].get('id_user_trade')
                 logger.info(f"Trade successful! Trade ID: {trade_id}")
                 QMessageBox.information(self, "Success", f"Trade successful! Trade ID: {trade_id}")
             else:

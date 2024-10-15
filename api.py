@@ -2,7 +2,6 @@
 import asyncio
 import logging
 import aiohttp
-import json
 
 logger = logging.getLogger(__name__)
 
@@ -69,10 +68,8 @@ class API:
         }
 
         try:
-            # Serialize data to JSON with double quotes
-            json_data = json.dumps(data)
-            async with self.session.post(url, data=json_data, headers=headers) as response:
-                logger.info(f"API Request: POST {url} {json_data}")
+            async with self.session.post(url, data=data, headers=headers) as response:
+                logger.info(f"API Request: POST {url} {data}")
                 response.raise_for_status()  # Raise an exception for bad status codes
                 return await response.json() 
         except aiohttp.ClientResponseError as e:
