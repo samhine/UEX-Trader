@@ -360,10 +360,10 @@ class UexcorpTrader(QWidget):
         try:
             async with aiohttp.ClientSession() as session:
                 prices = await self.fetch_data(session, "/commodities_prices", params={'id_commodity': commodity_id, 'id_terminal': terminal_id})
-                if prices:
+                if prices and prices.get("data"):
                     price_input = self.price_input
                     if price_input:
-                        price_input.setText(str(prices[0]["price_sell"] if prices[0]["price_sell"] else prices[0]["price_buy"]))
+                        price_input.setText(str(prices["data"][0]["price_sell"] if prices["data"][0]["price_sell"] else prices["data"][0]["price_buy"]))
         except Exception as e:
             self.log_api_output(f"Error loading prices: {e}", level=logging.ERROR)
 
