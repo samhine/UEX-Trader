@@ -12,9 +12,11 @@ from PyQt5.QtWidgets import (
     QTabWidget,
     QTextEdit,
 )
+from PyQt5.QtGui import QDoubleValidator, QIntValidator
 from PyQt5.QtCore import Qt
 import configparser
 import aiohttp
+import re
 
 API_BASE_URL = "https://uexcorp.space/api/2.0"
 
@@ -117,8 +119,10 @@ class UexcorpTrader(QWidget):
 
         amount_label = QLabel("Amount (SCU):")
         amount_input = QLineEdit()
+        amount_input.setValidator(QIntValidator(0, 1000000))  # Allow only integers
         price_label = QLabel("Price (UEC/SCU):")
         price_input = QLineEdit()
+        price_input.setValidator(QDoubleValidator(0.0, 1000000.0, 2))  # Allow only floating-point numbers with 2 decimal places
         layout.addWidget(amount_label)
         layout.addWidget(amount_input)
         layout.addWidget(price_label)
@@ -256,18 +260,24 @@ class UexcorpTrader(QWidget):
         try:
             terminal_id = terminal_combo.currentData()
             commodity_id = commodity_combo.currentData()
-            amount = int(amount_input.text())
-            price = float(price_input.text())
+            amount = amount_input.text()
+            price = price_input.text()
 
             if not all([terminal_id, commodity_id, amount, price]):
                 raise ValueError("Please fill all fields.")
+
+            if not re.match(r'^\d+$', amount):
+                raise ValueError("Amount must be a valid integer.")
+
+            if not re.match(r'^\d+(\.\d{1,2})?$', price):
+                raise ValueError("Price must be a valid number with up to 2 decimal places.")
 
             data = {
                 "id_terminal": terminal_id,
                 "id_commodity": commodity_id,
                 "operation": operation,
-                "scu": amount,
-                "price": price,
+                "scu": int(amount),
+                "price": float(price),
                 "is_production": 0,  # Assuming not production
             }
 
