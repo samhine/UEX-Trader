@@ -12,10 +12,12 @@ from PyQt5.QtWidgets import (
     QTabWidget,
     QStyleFactory,
     QListWidget,
-    QApplication
+    QApplication,
+    QListWidgetItem
 )
+import re
 from PyQt5.QtGui import QDoubleValidator, QIntValidator, QPalette, QColor
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QVariant
 from api import API
 from config_manager import ConfigManager
 
@@ -39,7 +41,12 @@ class UexcorpTrader(QWidget):
         self.logger.setLevel(logging_level)  # Set the level on the logger instance
         self.logger.debug("Logging level set to: %s", logging_level)  # Log the logging level
 
-        self.api = API(self.api_key, self.is_production, self.debug)
+        self.api = API(
+            self.config_manager.get_api_key(), 
+            self.config_manager.get_secret_key(),  # Get secret_key here
+            self.is_production, 
+            self.debug
+        )
         self.star_systems = []
         self.planets = []
         self.terminals = []
@@ -72,6 +79,10 @@ class UexcorpTrader(QWidget):
         api_key_label = QLabel("UEXcorp API Key:")
         self.api_key_input = QLineEdit(self.api_key)
 
+        secret_key_label = QLabel("UEXcorp Secret Key:")
+        self.secret_key_input = QLineEdit(self.config_manager.get_secret_key())
+        self.secret_key_input.setEchoMode(QLineEdit.Password)  # Hide the secret key
+
         is_production_label = QLabel("Is Production:")
         self.is_production_input = QComboBox()
         self.is_production_input.addItems(["False", "True"])
@@ -92,6 +103,8 @@ class UexcorpTrader(QWidget):
 
         layout.addWidget(api_key_label)
         layout.addWidget(self.api_key_input)
+        layout.addWidget(secret_key_label)
+        layout.addWidget(self.secret_key_input)
         layout.addWidget(is_production_label)
         layout.addWidget(self.is_production_input)
         layout.addWidget(debug_label)
@@ -260,7 +273,10 @@ class UexcorpTrader(QWidget):
     def update_commodity_list(self):
         self.commodity_list.clear()
         for commodity in self.commodities.get("data", []):
-            self.commodity_list.addItem(commodity["commodity_name"])
+            # Store commodity_id as user data, converting to QVariant
+            item = QListWidgetItem(commodity["commodity_name"])
+            item.setData(Qt.UserRole, QVariant(commodity["id_commodity"])) 
+            self.commodity_list.addItem(item)
         self.logger.debug(f"Commodities updated: {self.commodities}")
         
         # Make sure update_price is awaited
@@ -297,6 +313,7 @@ class UexcorpTrader(QWidget):
     def save_configuration(self, event=None):
         self.api_key = self.api_key_input.text()
         self.config_manager.set_api_key(self.api_key)
+        self.config_manager.set_secret_key(self.secret_key_input.text())
         self.is_production = self.is_production_input.currentText() == "True"
         self.config_manager.set_is_production(self.is_production)
         self.debug = self.debug_input.currentText() == "True"
@@ -313,9 +330,9 @@ class UexcorpTrader(QWidget):
         self.apply_appearance_mode()
 
         # Update API instance with new settings
-        self.api.api_key = self.api_key
         self.api.is_production = self.is_production
         self.api.debug = self.debug
+        self.api.update_credentials(self.api_key_input.text(), self.secret_key_input.text())
 
         QMessageBox.information(self, "Configuration", "Configuration saved successfully!")
 
@@ -352,10 +369,13 @@ class UexcorpTrader(QWidget):
         await self.perform_trade("sell")
 
     async def perform_trade(self, operation):
+        logger = logging.getLogger(__name__)
         try:
             terminal_id = self.terminal_combo.currentData()
             commodity_name = self.commodity_list.currentItem().text() if self.commodity_list.currentItem() else None
             amount = self.amount_input.text()
+
+            logger.debug(f"Attempting trade - Operation: {operation}, Terminal ID: {terminal_id}, Commodity: {commodity_name}, Amount: {amount}")
 
             if not all([terminal_id, commodity_name, amount]):
                 raise ValueError("Please fill all fields.")
@@ -374,26 +394,38 @@ class UexcorpTrader(QWidget):
             # Get the price from the input field, depending on buy/sell operation
             price = float(self.buy_price_input.text()) if operation == "buy" else float(self.sell_price_input.text())
 
+            current_item = self.commodity_list.currentItem()
+            if current_item:
+                commodity_id = current_item.data(Qt.UserRole)
+            else:
+                raise ValueError("Please select a commodity.")
+
             data = {
                 "id_terminal": terminal_id,
-                "commodity_name": commodity_name,
+                "id_commodity": commodity_id,
                 "operation": operation,
                 "scu": int(amount),
                 "price": price,
                 "is_production": int(self.is_production),
             }
 
-            self.log_api_output(f"API Request: POST {self.api.API_BASE_URL}/user_trades_add/ {data}", level=logging.INFO)
+            logger.info(f"API Request: POST {self.api.API_BASE_URL}/user_trades_add/ {data}")
             result = await self.api.perform_trade(data)
 
             if result and "id_user_trade" in result:
-                QMessageBox.information(self, "Success", f"Trade successful! Trade ID: {result.get('id_user_trade')}")
+                trade_id = result.get('id_user_trade')
+                logger.info(f"Trade successful! Trade ID: {trade_id}")
+                QMessageBox.information(self, "Success", f"Trade successful! Trade ID: {trade_id}")
             else:
-                QMessageBox.critical(self, "Error", f"Trade failed: {result.get('message', 'Unknown error')}")
+                error_message = result.get('message', 'Unknown error')
+                logger.error(f"Trade failed: {error_message}")
+                QMessageBox.critical(self, "Error", f"Trade failed: {error_message}")
 
         except ValueError as e:
+            logger.warning(f"Input Error: {e}")
             QMessageBox.warning(self, "Input Error", str(e))
         except Exception as e:
+            logger.exception(f"An unexpected error occurred: {e}")
             QMessageBox.critical(self, "Error", f"An error occurred: {e}")
 
     def log_api_output(self, message, level=logging.INFO):

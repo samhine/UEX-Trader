@@ -1,9 +1,9 @@
-# user_functions.py
+# config_manager.py
 import configparser
 import logging
+import base64
 
 logger = logging.getLogger(__name__)
-
 
 class ConfigManager:
     def __init__(self, config_file="config.ini"):
@@ -19,10 +19,22 @@ class ConfigManager:
             self.config.write(f)
 
     def get_api_key(self):
-        return self.config.get("API", "key", fallback="")
+        encoded_key = self.config.get("API", "key", fallback="")
+        return base64.b64decode(encoded_key).decode('utf-8') if encoded_key else ""
 
     def set_api_key(self, key):
-        self.config["API"] = {"key": key}
+        encoded_key = base64.b64encode(key.encode('utf-8')).decode('utf-8')
+        self.config['API']['key'] = encoded_key  # Set the 'key' within the 'API' section
+        self.save_config()
+
+    def get_secret_key(self):
+        """Retrieves the secret key from the config file."""
+        encoded_secret_key = self.config.get("API", "secret_key", fallback="")
+        return base64.b64decode(encoded_secret_key).decode('utf-8') if encoded_secret_key else ""
+
+    def set_secret_key(self, secret_key):
+        encoded_secret_key = base64.b64encode(secret_key.encode('utf-8')).decode('utf-8')
+        self.config['API']['secret_key'] = encoded_secret_key  # Set 'secret_key' within 'API'
         self.save_config()
 
     def get_is_production(self):
