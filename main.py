@@ -172,9 +172,13 @@ class UexcorpTrader(QWidget):
         layout.addWidget(self.planet_combo)
 
         terminal_label = QLabel("Select Terminal:")
+        self.terminal_search_input = QLineEdit()
+        self.terminal_search_input.setPlaceholderText("Type to search terminals...")
+        self.terminal_search_input.textChanged.connect(self.filter_terminals)
         self.terminal_combo = QComboBox()
-        self.terminal_combo.currentIndexChanged.connect(lambda: self.update_commodities(self.terminal_combo))
+        self.terminal_combo.setEditable(True)
         layout.addWidget(terminal_label)
+        layout.addWidget(self.terminal_search_input)
         layout.addWidget(self.terminal_combo)
 
         commodity_label = QLabel("Select Commodity:")
@@ -290,6 +294,13 @@ class UexcorpTrader(QWidget):
         self.logger.debug(f"Terminals updated: {self.terminals}")
 
     @log_function_call
+    def filter_terminals(self, text):
+        self.terminal_combo.clear()
+        for terminal in self.terminals.get("data", []):
+            if text.lower() in terminal["name"].lower():
+                self.terminal_combo.addItem(terminal["name"], terminal["id"])
+
+    @log_function_call
     def update_commodities(self, terminal_combo):
         terminal_id = terminal_combo.currentData()
         self.logger.debug(f"Selected terminal ID: {terminal_id}")
@@ -373,9 +384,9 @@ class UexcorpTrader(QWidget):
                 raise ValueError("Price must be a valid number with up to 2 decimal places.")
 
             # Validate terminal and commodity
-            if not any(terminal["id"] == terminal_id for terminal in self.terminals):
+            if not any(terminal["id"] == terminal_id for terminal in self.terminals.get("data", [])):
                 raise ValueError("Selected terminal does not exist.")
-            if not any(commodity["id_commodity"] == commodity_id for commodity in self.commodities):
+            if not any(commodity["id_commodity"] == commodity_id for commodity in self.commodities.get("data", [])):
                 raise ValueError("Selected commodity does not exist on this terminal.")
 
             data = {
