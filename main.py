@@ -26,15 +26,15 @@ logger = logging.getLogger(__name__)
 
 def log_function_call(func):
     async def async_wrapper(*args, **kwargs):
-        logger.debug(f"Entering {func.__name__}")
+        logger.debug(f"Entering {func.__name__} - {func.__code__.co_filename}:{func.__code__.co_firstlineno}")
         result = await func(*args, **kwargs)
-        logger.debug(f"Exiting {func.__name__}")
+        logger.debug(f"Exiting {func.__name__} - {func.__code__.co_filename}:{func.__code__.co_firstlineno}")
         return result
 
     def sync_wrapper(*args, **kwargs):
-        logger.debug(f"Entering {func.__name__}")
+        logger.debug(f"Entering {func.__name__} - {func.__code__.co_filename}:{func.__code__.co_firstlineno}")
         result = func(*args, **kwargs)
-        logger.debug(f"Exiting {func.__name__}")
+        logger.debug(f"Exiting {func.__name__} - {func.__code__.co_filename}:{func.__code__.co_firstlineno}")
         return result
 
     return async_wrapper if asyncio.iscoroutinefunction(func) else sync_wrapper
@@ -115,6 +115,7 @@ class UexcorpTrader(QWidget):
         main_layout.addWidget(tabs)
         self.setLayout(main_layout)
 
+        # Ensure the load_data function is awaited
         asyncio.ensure_future(self.load_data())
 
     @log_function_call
