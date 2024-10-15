@@ -211,6 +211,7 @@ class UexcorpTrader(QWidget):
     def update_planets(self, system_combo):
         self.logger.debug("Updating planets")
         system_id = system_combo.currentData()
+        self.logger.debug(f"Selected system ID: {system_id}")
         if system_id:
             asyncio.ensure_future(self.update_planets_async(system_id, system_combo))
 
@@ -230,10 +231,12 @@ class UexcorpTrader(QWidget):
             planet_combo.clear()
             for planet in self.planets:
                 planet_combo.addItem(planet["name"], planet["id"])
+        self.logger.debug(f"Planets updated: {self.planets}")
 
     def update_terminals(self, planet_combo):
         self.logger.debug("Updating terminals")
         planet_id = planet_combo.currentData()
+        self.logger.debug(f"Selected planet ID: {planet_id}")
         if planet_id:
             asyncio.ensure_future(self.update_terminals_async(planet_id, planet_combo))
 
@@ -253,10 +256,12 @@ class UexcorpTrader(QWidget):
             terminal_combo.clear()
             for terminal in self.terminals:
                 terminal_combo.addItem(terminal["name"], terminal["id"])
+        self.logger.debug(f"Terminals updated: {self.terminals}")
 
     def update_commodities(self, terminal_combo):
         self.logger.debug("Updating commodities")
         terminal_id = terminal_combo.currentData()
+        self.logger.debug(f"Selected terminal ID: {terminal_id}")
         if terminal_id:
             asyncio.ensure_future(self.update_commodities_async(terminal_id, terminal_combo))
 
@@ -276,11 +281,13 @@ class UexcorpTrader(QWidget):
             commodity_combo.clear()
             for commodity in self.commodities:
                 commodity_combo.addItem(commodity["commodity_name"], commodity["id_commodity"])
+        self.logger.debug(f"Commodities updated: {self.commodities}")
 
     def update_price(self, commodity_combo, terminal_combo):
         self.logger.debug("Updating price")
         commodity_id = commodity_combo.currentData()
         terminal_id = terminal_combo.currentData()
+        self.logger.debug(f"Selected commodity ID: {commodity_id}, terminal ID: {terminal_id}")
         if commodity_id and terminal_id:
             asyncio.ensure_future(self.update_price_async(commodity_id, terminal_id, commodity_combo))
 
