@@ -12,6 +12,7 @@ from PyQt5.QtWidgets import (
     QMessageBox,
     QTabWidget,
     QStyleFactory,
+    QListWidget,
 )
 from PyQt5.QtGui import QDoubleValidator, QIntValidator, QPalette, QColor
 from PyQt5.QtCore import Qt
@@ -25,6 +26,7 @@ API_BASE_URL = "https://uexcorp.space/api/2.0"
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s - %(filename)s:%(lineno)d')
 logger = logging.getLogger(__name__)
+
 
 def log_function_call(func):
     async def async_wrapper(*args, **kwargs):
@@ -40,6 +42,7 @@ def log_function_call(func):
         return result
 
     return async_wrapper if asyncio.iscoroutinefunction(func) else sync_wrapper
+
 
 class ConfigManager:
     def __init__(self, config_file="config.ini"):
@@ -121,7 +124,8 @@ class UexcorpTrader(QWidget):
     def initUI(self):
         self.setWindowTitle("UEXcorp Trader")
         self.resize(800, 600)  # Set initial window size
-        self.setWindowFlags(Qt.Window | Qt.WindowTitleHint | Qt.WindowSystemMenuHint | Qt.WindowMinMaxButtonsHint | Qt.WindowCloseButtonHint)
+        self.setWindowFlags(Qt.Window | Qt.WindowTitleHint | Qt.WindowSystemMenuHint | Qt.WindowMinMaxButtonsHint |
+                            Qt.WindowCloseButtonHint)
 
         tabs = QTabWidget()
         tabs.addTab(self.create_config_tab(), "Configuration")
@@ -202,21 +206,24 @@ class UexcorpTrader(QWidget):
         layout.addWidget(self.terminal_combo)
 
         commodity_label = QLabel("Select Commodity:")
-        self.commodity_combo = QComboBox()
-        self.commodity_combo.currentIndexChanged.connect(lambda: self.update_price(self.commodity_combo, self.terminal_combo))
+        self.commodity_list = QListWidget()  # Use QListWidget for scrolling
+        self.commodity_list.currentItemChanged.connect(
+            lambda: self.update_price(self.commodity_list, self.terminal_combo)
+        )
         layout.addWidget(commodity_label)
-        layout.addWidget(self.commodity_combo)
+        layout.addWidget(self.commodity_list)
 
         amount_label = QLabel("Amount (SCU):")
         self.amount_input = QLineEdit()
         self.amount_input.setValidator(QIntValidator(0, 1000000))  # Allow only integers
-        price_label = QLabel("Price (UEC/SCU):")
-        self.price_input = QLineEdit()
-        self.price_input.setValidator(QDoubleValidator(0.0, 1000000.0, 2))  # Allow only floating-point numbers with 2 decimal places
+        self.buy_price_label = QLabel("Buy Price (UEC/SCU):")  # Label for buy price
+        self.buy_price_label.setText("Buy Price (UEC/SCU):")
+        self.sell_price_label = QLabel("Sell Price (UEC/SCU):")  # Label for sell price
+        self.sell_price_label.setText("Sell Price (UEC/SCU):")
         layout.addWidget(amount_label)
         layout.addWidget(self.amount_input)
-        layout.addWidget(price_label)
-        layout.addWidget(self.price_input)
+        layout.addWidget(self.buy_price_label)  # Add buy price label to layout
+        layout.addWidget(self.sell_price_label)  # Add sell price label to layout
 
         buy_button = QPushButton("Buy Commodity")
         buy_button.clicked.connect(lambda: asyncio.ensure_future(self.buy_commodity()))
@@ -252,7 +259,9 @@ class UexcorpTrader(QWidget):
                     return data
                 else:
                     error_message = await response.text()
-                    self.log_api_output(f"API request failed with status {response.status}: {error_message}", level=logging.ERROR)
+                    self.log_api_output(
+                        f"API request failed with status {response.status}: {error_message}", level=logging.ERROR
+                    )
                     return []
         except Exception as e:
             self.log_api_output(f"Error during API request to {url}: {e}", level=logging.ERROR)
@@ -318,7 +327,9 @@ class UexcorpTrader(QWidget):
     def filter_terminals(self, text):
         self.terminal_combo.clear()
         for terminal in self.terminals.get("data", []):
-            if terminal.get("is_available") == 1 and terminal.get("type") == "commodity" and text.lower() in terminal["name"].lower():
+            if terminal.get("is_available") == 1 and terminal.get("type") == "commodity" and text.lower() in terminal[
+                "name"
+            ].lower():
                 self.terminal_combo.addItem(terminal["name"], terminal["id"])
         # Ensure the first item is selected if available
         if self.terminal_combo.count() > 0:
@@ -336,35 +347,44 @@ class UexcorpTrader(QWidget):
     async def update_commodities_async(self, terminal_id, terminal_combo):
         try:
             async with aiohttp.ClientSession() as session:
-                self.commodities = await self.fetch_data(session, "/commodities_prices", params={'id_terminal': terminal_id})
-                self.update_commodity_combo()
+                self.commodities = await self.fetch_data(
+                    session, "/commodities_prices", params={'id_terminal': terminal_id}
+                )
+                self.update_commodity_list()
         except Exception as e:
             self.log_api_output(f"Error loading commodities: {e}", level=logging.ERROR)
 
     @log_function_call
-    def update_commodity_combo(self):
-        self.commodity_combo.clear()
+    def update_commodity_list(self):
+        self.commodity_list.clear()
         for commodity in self.commodities.get("data", []):
-            self.commodity_combo.addItem(commodity["commodity_name"], commodity["id_commodity"])
+            self.commodity_list.addItem(commodity["commodity_name"])
         self.logger.debug(f"Commodities updated: {self.commodities}")
 
     @log_function_call
-    def update_price(self, commodity_combo, terminal_combo):
-        commodity_id = commodity_combo.currentData()
+    def update_price(self, commodity_list, terminal_combo):
+        commodity_name = commodity_list.currentItem().text() if commodity_list.currentItem() else None
         terminal_id = terminal_combo.currentData()
-        self.logger.debug(f"Selected commodity ID: {commodity_id}, terminal ID: {terminal_id}")
-        if commodity_id and terminal_id:
-            asyncio.ensure_future(self.update_price_async(commodity_id, terminal_id, commodity_combo))
+        self.logger.debug(f"Selected commodity name: {commodity_name}, terminal ID: {terminal_id}")
+        if commodity_name and terminal_id:
+            asyncio.ensure_future(
+                self.update_price_async(commodity_name, terminal_id, commodity_list)
+            )
 
     @log_function_call
-    async def update_price_async(self, commodity_id, terminal_id, commodity_combo):
+    async def update_price_async(self, commodity_name, terminal_id, commodity_list):
         try:
             async with aiohttp.ClientSession() as session:
-                prices = await self.fetch_data(session, "/commodities_prices", params={'id_commodity': commodity_id, 'id_terminal': terminal_id})
+                prices = await self.fetch_data(
+                    session,
+                    "/commodities_prices",
+                    params={'commodity_name': commodity_name, 'id_terminal': terminal_id},
+                )
                 if prices and prices.get("data"):
-                    price_input = self.price_input
-                    if price_input:
-                        price_input.setText(str(prices["data"][0]["price_sell"] if prices["data"][0]["price_sell"] else prices["data"][0]["price_buy"]))
+                    buy_price = prices["data"][0]["price_buy"]
+                    sell_price = prices["data"][0]["price_sell"]
+                    self.buy_price_label.setText(f"Buy Price (UEC/SCU): {buy_price if buy_price else 'N/A'}")
+                    self.sell_price_label.setText(f"Sell Price (UEC/SCU): {sell_price if sell_price else 'N/A'}")
         except Exception as e:
             self.log_api_output(f"Error loading prices: {e}", level=logging.ERROR)
 
@@ -427,28 +447,39 @@ class UexcorpTrader(QWidget):
     async def perform_trade(self, operation):
         try:
             terminal_id = self.terminal_combo.currentData()
-            commodity_id = self.commodity_combo.currentData()
+            commodity_name = self.commodity_list.currentItem().text() if self.commodity_list.currentItem() else None
             amount = self.amount_input.text()
-            price = self.price_input.text()
 
-            if not all([terminal_id, commodity_id, amount, price]):
+            if not all([terminal_id, commodity_name, amount]):
                 raise ValueError("Please fill all fields.")
 
             if not re.match(r'^\d+$', amount):
                 raise ValueError("Amount must be a valid integer.")
 
-            if not re.match(r'^\d+(\.\d{1,2})?$', price):
-                raise ValueError("Price must be a valid number with up to 2 decimal places.")
-
             # Validate terminal and commodity
             if not any(terminal["id"] == terminal_id for terminal in self.terminals.get("data", [])):
                 raise ValueError("Selected terminal does not exist.")
-            if not any(commodity["id_commodity"] == commodity_id for commodity in self.commodities.get("data", [])):
+            if not any(
+                commodity["commodity_name"] == commodity_name for commodity in self.commodities.get("data", [])
+            ):
                 raise ValueError("Selected commodity does not exist on this terminal.")
+
+            # Get the correct price based on the operation
+            price_key = "price_buy" if operation == "buy" else "price_sell"
+            price = next(
+                (
+                    commodity[price_key]
+                    for commodity in self.commodities.get("data", [])
+                    if commodity["commodity_name"] == commodity_name
+                ),
+                None,
+            )
+            if price is None:
+                raise ValueError(f"No {operation} price found for this commodity.")
 
             data = {
                 "id_terminal": terminal_id,
-                "id_commodity": commodity_id,
+                "commodity_name": commodity_name,
                 "operation": operation,
                 "scu": int(amount),
                 "price": float(price),
@@ -463,7 +494,9 @@ class UexcorpTrader(QWidget):
                         QMessageBox.information(self, "Success", f"Trade successful! Trade ID: {result.get('id_user_trade')}")
                     else:
                         error_message = await response.text()
-                        self.log_api_output(f"API request failed with status {response.status}: {error_message}", level=logging.ERROR)
+                        self.log_api_output(
+                            f"API request failed with status {response.status}: {error_message}", level=logging.ERROR
+                        )
         except ValueError as e:
             QMessageBox.warning(self, "Input Error", str(e))
         except Exception as e:
