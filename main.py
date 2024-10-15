@@ -255,17 +255,15 @@ class UexcorpTrader(QWidget):
         try:
             async with aiohttp.ClientSession() as session:
                 self.planets = await self.fetch_data(session, "/planets", params={'id_star_system': system_id})
-                self.update_planet_combo(system_combo)
+                self.update_planet_combo()
         except Exception as e:
             self.log_api_output(f"Error loading planets: {e}", level=logging.ERROR)
 
     @log_function_call
-    def update_planet_combo(self, system_combo):
-        planet_combo = system_combo.parent().findChild(QComboBox, "planet_combo")
-        if planet_combo:
-            planet_combo.clear()
-            for planet in self.planets:
-                planet_combo.addItem(planet["name"], planet["id"])
+    def update_planet_combo(self):
+        self.planet_combo.clear()
+        for planet in self.planets.get("data", []):
+            self.planet_combo.addItem(planet["name"], planet["id"])
         self.logger.debug(f"Planets updated: {self.planets}")
 
     @log_function_call
@@ -280,17 +278,15 @@ class UexcorpTrader(QWidget):
         try:
             async with aiohttp.ClientSession() as session:
                 self.terminals = await self.fetch_data(session, "/terminals", params={'id_planet': planet_id})
-                self.update_terminal_combo(planet_combo)
+                self.update_terminal_combo()
         except Exception as e:
             self.log_api_output(f"Error loading terminals: {e}", level=logging.ERROR)
 
     @log_function_call
-    def update_terminal_combo(self, planet_combo):
-        terminal_combo = planet_combo.parent().findChild(QComboBox, "terminal_combo")
-        if terminal_combo:
-            terminal_combo.clear()
-            for terminal in self.terminals:
-                terminal_combo.addItem(terminal["name"], terminal["id"])
+    def update_terminal_combo(self):
+        self.terminal_combo.clear()
+        for terminal in self.terminals.get("data", []):
+            self.terminal_combo.addItem(terminal["name"], terminal["id"])
         self.logger.debug(f"Terminals updated: {self.terminals}")
 
     @log_function_call
@@ -305,17 +301,15 @@ class UexcorpTrader(QWidget):
         try:
             async with aiohttp.ClientSession() as session:
                 self.commodities = await self.fetch_data(session, "/commodities_prices", params={'id_terminal': terminal_id})
-                self.update_commodity_combo(terminal_combo)
+                self.update_commodity_combo()
         except Exception as e:
             self.log_api_output(f"Error loading commodities: {e}", level=logging.ERROR)
 
     @log_function_call
-    def update_commodity_combo(self, terminal_combo):
-        commodity_combo = terminal_combo.parent().findChild(QComboBox, "commodity_combo")
-        if commodity_combo:
-            commodity_combo.clear()
-            for commodity in self.commodities:
-                commodity_combo.addItem(commodity["commodity_name"], commodity["id_commodity"])
+    def update_commodity_combo(self):
+        self.commodity_combo.clear()
+        for commodity in self.commodities.get("data", []):
+            self.commodity_combo.addItem(commodity["commodity_name"], commodity["id_commodity"])
         self.logger.debug(f"Commodities updated: {self.commodities}")
 
     @log_function_call
@@ -332,7 +326,7 @@ class UexcorpTrader(QWidget):
             async with aiohttp.ClientSession() as session:
                 prices = await self.fetch_data(session, "/commodities_prices", params={'id_commodity': commodity_id, 'id_terminal': terminal_id})
                 if prices:
-                    price_input = commodity_combo.parent().findChild(QLineEdit, "price_input")
+                    price_input = self.price_input
                     if price_input:
                         price_input.setText(str(prices[0]["price_sell"] if prices[0]["price_sell"] else prices[0]["price_buy"]))
         except Exception as e:
