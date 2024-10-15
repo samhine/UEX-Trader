@@ -87,22 +87,20 @@ class UexcorpTrader(QWidget):
 
         api_key_label = QLabel("UEXcorp API Key:")
         self.api_key_input = QLineEdit(self.api_key)
-        save_api_key_button = QPushButton("Save API Key")
-        save_api_key_button.clicked.connect(self.save_api_key)
 
         is_production_label = QLabel("Is Production:")
         self.is_production_input = QComboBox()
         self.is_production_input.addItems(["False", "True"])
         self.is_production_input.setCurrentText(str(self.is_production))
-        save_is_production_button = QPushButton("Save Is Production")
-        save_is_production_button.clicked.connect(self.save_is_production)
+
+        save_config_button = QPushButton("Save Configuration")
+        save_config_button.clicked.connect(self.save_configuration)
 
         layout.addWidget(api_key_label)
         layout.addWidget(self.api_key_input)
-        layout.addWidget(save_api_key_button)
         layout.addWidget(is_production_label)
         layout.addWidget(self.is_production_input)
-        layout.addWidget(save_is_production_button)
+        layout.addWidget(save_config_button)
 
         config_tab.setLayout(layout)
         return config_tab
@@ -263,15 +261,12 @@ class UexcorpTrader(QWidget):
         except Exception as e:
             self.log_api_output(f"Error loading prices: {e}")
 
-    def save_api_key(self):
+    def save_configuration(self):
         self.api_key = self.api_key_input.text()
         self.config_manager.set_api_key(self.api_key)
-        QMessageBox.information(self, "API Key", "API key saved successfully!")
-
-    def save_is_production(self):
         self.is_production = self.is_production_input.currentText() == "True"
         self.config_manager.set_is_production(self.is_production)
-        QMessageBox.information(self, "Is Production", "Is Production saved successfully!")
+        QMessageBox.information(self, "Configuration", "Configuration saved successfully!")
 
     async def buy_commodity(self, system_combo, planet_combo, terminal_combo, commodity_combo, amount_input, price_input):
         await self.perform_trade("buy", system_combo, planet_combo, terminal_combo, commodity_combo, amount_input, price_input)
