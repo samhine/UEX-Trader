@@ -11,8 +11,9 @@ from PyQt5.QtWidgets import (
     QComboBox,
     QMessageBox,
     QTabWidget,
+    QStyleFactory,
 )
-from PyQt5.QtGui import QDoubleValidator, QIntValidator
+from PyQt5.QtGui import QDoubleValidator, QIntValidator, QPalette, QColor
 from PyQt5.QtCore import Qt
 import configparser
 import aiohttp
@@ -82,6 +83,15 @@ class ConfigManager:
         self.config["SETTINGS"]["debug"] = str(debug)
         self.save_config()
 
+    @log_function_call
+    def get_appearance_mode(self):
+        return self.config.get("SETTINGS", "appearance_mode", fallback="Light")
+
+    @log_function_call
+    def set_appearance_mode(self, mode):
+        self.config["SETTINGS"]["appearance_mode"] = mode
+        self.save_config()
+
 
 class UexcorpTrader(QWidget):
     def __init__(self):
@@ -90,6 +100,7 @@ class UexcorpTrader(QWidget):
         self.api_key = self.config_manager.get_api_key()
         self.is_production = self.config_manager.get_is_production()
         self.debug = self.config_manager.get_debug()
+        self.appearance_mode = self.config_manager.get_appearance_mode()
 
         # Configure logging based on the debug setting
         logging_level = logging.DEBUG if self.debug else logging.INFO
@@ -104,6 +115,7 @@ class UexcorpTrader(QWidget):
         self.commodities = []
 
         self.initUI()
+        self.apply_appearance_mode()
 
     @log_function_call
     def initUI(self):
@@ -140,6 +152,11 @@ class UexcorpTrader(QWidget):
         self.debug_input.addItems(["False", "True"])
         self.debug_input.setCurrentText(str(self.debug))
 
+        appearance_label = QLabel("Appearance Mode:")
+        self.appearance_input = QComboBox()
+        self.appearance_input.addItems(["Light", "Dark"])
+        self.appearance_input.setCurrentText(self.appearance_mode)
+
         save_config_button = QPushButton("Save Configuration")
         save_config_button.clicked.connect(self.save_configuration)
 
@@ -149,6 +166,8 @@ class UexcorpTrader(QWidget):
         layout.addWidget(self.is_production_input)
         layout.addWidget(debug_label)
         layout.addWidget(self.debug_input)
+        layout.addWidget(appearance_label)
+        layout.addWidget(self.appearance_input)
         layout.addWidget(save_config_button)
 
         config_tab.setLayout(layout)
@@ -356,12 +375,44 @@ class UexcorpTrader(QWidget):
         self.config_manager.set_is_production(self.is_production)
         self.debug = self.debug_input.currentText() == "True"
         self.config_manager.set_debug(self.debug)
+        self.appearance_mode = self.appearance_input.currentText()
+        self.config_manager.set_appearance_mode(self.appearance_mode)
 
         # Reconfigure logging based on the new debug setting
         logging_level = logging.DEBUG if self.debug else logging.INFO
         logging.getLogger().setLevel(logging_level)
 
+        # Apply the new appearance mode
+        self.apply_appearance_mode()
+
         QMessageBox.information(self, "Configuration", "Configuration saved successfully!")
+
+    @log_function_call
+    def apply_appearance_mode(self):
+        if self.appearance_mode == "Dark":
+            QApplication.setStyle(QStyleFactory.create("Fusion"))
+            dark_palette = self.create_dark_palette()
+            QApplication.setPalette(dark_palette)
+        else:
+            QApplication.setStyle(QStyleFactory.create("Fusion"))
+            QApplication.setPalette(QApplication.style().standardPalette())
+
+    def create_dark_palette(self):
+        dark_palette = QPalette()
+        dark_palette.setColor(QPalette.Window, QColor(53, 53, 53))
+        dark_palette.setColor(QPalette.WindowText, Qt.white)
+        dark_palette.setColor(QPalette.Base, QColor(25, 25, 25))
+        dark_palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+        dark_palette.setColor(QPalette.ToolTipBase, Qt.white)
+        dark_palette.setColor(QPalette.ToolTipText, Qt.white)
+        dark_palette.setColor(QPalette.Text, Qt.white)
+        dark_palette.setColor(QPalette.Button, QColor(53, 53, 53))
+        dark_palette.setColor(QPalette.ButtonText, Qt.white)
+        dark_palette.setColor(QPalette.BrightText, Qt.red)
+        dark_palette.setColor(QPalette.Link, QColor(42, 130, 218))
+        dark_palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
+        dark_palette.setColor(QPalette.HighlightedText, Qt.black)
+        return dark_palette
 
     @log_function_call
     async def buy_commodity(self):
