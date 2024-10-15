@@ -10,7 +10,6 @@ from PyQt5.QtWidgets import (
     QComboBox,
     QMessageBox,
     QTabWidget,
-    QTextEdit,
 )
 from PyQt5.QtGui import QDoubleValidator, QIntValidator
 from PyQt5.QtCore import Qt
@@ -79,12 +78,8 @@ class UexcorpTrader(QWidget):
         tabs.addTab(self.create_trade_tab("Buy Commodity", self.buy_commodity), "Buy Commodity")
         tabs.addTab(self.create_trade_tab("Sell Commodity", self.sell_commodity), "Sell Commodity")
 
-        self.api_output = QTextEdit()
-        self.api_output.setReadOnly(True)
-
         main_layout = QVBoxLayout()
         main_layout.addWidget(tabs)
-        main_layout.addWidget(self.api_output)
         self.setLayout(main_layout)
 
         asyncio.ensure_future(self.load_data())
@@ -174,7 +169,7 @@ class UexcorpTrader(QWidget):
                 self.update_system_combos()
 
         except Exception as e:
-            self.log_api_output(f"Error loading initial data: {e}")
+            self.log_api_output(f"Error loading initial data: {e}", error=True)
 
     async def fetch_data(self, session, endpoint, params=None):
         url = f"{API_BASE_URL}{endpoint}"
@@ -187,10 +182,10 @@ class UexcorpTrader(QWidget):
                     return data
                 else:
                     error_message = await response.text()
-                    self.log_api_output(f"API request failed with status {response.status}: {error_message}")
+                    self.log_api_output(f"API request failed with status {response.status}: {error_message}", error=True)
                     return []
         except Exception as e:
-            self.log_api_output(f"Error during API request to {url}: {e}")
+            self.log_api_output(f"Error during API request to {url}: {e}", error=True)
             return []
 
     def update_system_combos(self):
@@ -214,7 +209,7 @@ class UexcorpTrader(QWidget):
                 self.planets = await self.fetch_data(session, "/planets", params={'id_star_system': system_id})
                 self.update_planet_combo(system_combo)
         except Exception as e:
-            self.log_api_output(f"Error loading planets: {e}")
+            self.log_api_output(f"Error loading planets: {e}", error=True)
 
     def update_planet_combo(self, system_combo):
         planet_combo = system_combo.parent().findChild(QComboBox, "planet_combo")
@@ -234,7 +229,7 @@ class UexcorpTrader(QWidget):
                 self.terminals = await self.fetch_data(session, "/terminals", params={'id_planet': planet_id})
                 self.update_terminal_combo(planet_combo)
         except Exception as e:
-            self.log_api_output(f"Error loading terminals: {e}")
+            self.log_api_output(f"Error loading terminals: {e}", error=True)
 
     def update_terminal_combo(self, planet_combo):
         terminal_combo = planet_combo.parent().findChild(QComboBox, "terminal_combo")
@@ -254,7 +249,7 @@ class UexcorpTrader(QWidget):
                 self.commodities = await self.fetch_data(session, "/commodities_prices", params={'id_terminal': terminal_id})
                 self.update_commodity_combo(terminal_combo)
         except Exception as e:
-            self.log_api_output(f"Error loading commodities: {e}")
+            self.log_api_output(f"Error loading commodities: {e}", error=True)
 
     def update_commodity_combo(self, terminal_combo):
         commodity_combo = terminal_combo.parent().findChild(QComboBox, "commodity_combo")
@@ -278,7 +273,7 @@ class UexcorpTrader(QWidget):
                     if price_input:
                         price_input.setText(str(prices[0]["price_sell"] if prices[0]["price_sell"] else prices[0]["price_buy"]))
         except Exception as e:
-            self.log_api_output(f"Error loading prices: {e}")
+            self.log_api_output(f"Error loading prices: {e}", error=True)
 
     def save_configuration(self):
         self.api_key = self.api_key_input.text()
@@ -334,15 +329,18 @@ class UexcorpTrader(QWidget):
                         QMessageBox.information(self, "Success", f"Trade successful! Trade ID: {result.get('id_user_trade')}")
                     else:
                         error_message = await response.text()
-                        self.log_api_output(f"API request failed with status {response.status}: {error_message}")
+                        self.log_api_output(f"API request failed with status {response.status}: {error_message}", error=True)
         except ValueError as e:
             QMessageBox.warning(self, "Input Error", str(e))
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred: {e}")
 
-    def log_api_output(self, message):
+    def log_api_output(self, message, error=False):
         if self.debug:
-            self.api_output.append(message)
+            if error:
+                print(message, file=sys.stderr)
+            else:
+                print(message)
 
 
 if __name__ == "__main__":
