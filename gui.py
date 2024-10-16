@@ -276,7 +276,10 @@ class UexcorpTrader(QWidget):
         self.commodity_list.clear()
         for commodity in self.commodities.get("data", []):
             # Store commodity_id as user data, converting to QVariant
-            item = QListWidgetItem(commodity["commodity_name"])
+            item_show = commodity["commodity_name"] + " - buy"
+            if commodity["price_sell"] > 0:
+                item_show = commodity["commodity_name"] + " - sell"
+            item = QListWidgetItem(item_show)
             item.setData(Qt.UserRole, QVariant(commodity["id_commodity"])) 
             self.commodity_list.addItem(item)
         self.logger.debug(f"Commodities updated: {self.commodities}")
@@ -286,14 +289,14 @@ class UexcorpTrader(QWidget):
             asyncio.ensure_future(self.update_price(self.commodity_list, self.terminal_combo))
 
     async def update_price(self, commodity_list, terminal_combo):
-        commodity_name = commodity_list.currentItem().text() if commodity_list.currentItem() else None
+        id_commodity = commodity_list.currentItem().data(Qt.UserRole) if commodity_list.currentItem() else None
         terminal_id = terminal_combo.currentData()
-        self.logger.debug(f"Selected commodity name: {commodity_name}, terminal ID: {terminal_id}")
-        if commodity_name and terminal_id:
+        self.logger.debug(f"Selected commodity ID: {id_commodity}, terminal ID: {terminal_id}")
+        if id_commodity and terminal_id:
             try:
                 prices = await self.api.fetch_data(
                     "/commodities_prices",
-                    params={'commodity_name': commodity_name, 'id_terminal': terminal_id},
+                    params={'id_commodity': id_commodity, 'id_terminal': terminal_id},
                 )
                 if prices and prices.get("data"):
                     buy_price = prices["data"][0]["price_buy"]
@@ -374,12 +377,12 @@ class UexcorpTrader(QWidget):
         logger = logging.getLogger(__name__)
         try:
             terminal_id = self.terminal_combo.currentData()
-            commodity_name = self.commodity_list.currentItem().text() if self.commodity_list.currentItem() else None
+            id_commodity = self.commodity_list.currentItem().data(Qt.UserRole) if self.commodity_list.currentItem() else None
             amount = self.amount_input.text()
 
-            logger.debug(f"Attempting trade - Operation: {operation}, Terminal ID: {terminal_id}, Commodity: {commodity_name}, Amount: {amount}")
+            logger.debug(f"Attempting trade - Operation: {operation}, Terminal ID: {terminal_id}, Commodity ID: {id_commodity}, Amount: {amount}")
 
-            if not all([terminal_id, commodity_name, amount]):
+            if not all([terminal_id, id_commodity, amount]):
                 raise ValueError("Please fill all fields.")
 
             if not re.match(r'^\d+$', amount):
@@ -389,7 +392,7 @@ class UexcorpTrader(QWidget):
             if not any(terminal["id"] == terminal_id for terminal in self.terminals.get("data", [])):
                 raise ValueError("Selected terminal does not exist.")
             if not any(
-                commodity["commodity_name"] == commodity_name for commodity in self.commodities.get("data", [])
+                commodity["id_commodity"] == id_commodity for commodity in self.commodities.get("data", [])
             ):
                 raise ValueError("Selected commodity does not exist on this terminal.")
 
