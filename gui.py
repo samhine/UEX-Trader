@@ -4,6 +4,7 @@ import logging
 from PyQt5.QtWidgets import (
     QWidget,
     QVBoxLayout,
+    QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
@@ -129,19 +130,19 @@ class UexcorpTrader(QWidget):
 
     def create_trade_tab(self):
         trade_tab = QWidget()
-        layout = QVBoxLayout()
+        main_layout = QVBoxLayout()
 
         system_label = QLabel("Select System:")
         self.system_combo = QComboBox()
         self.system_combo.currentIndexChanged.connect(lambda: self.update_planets(self.system_combo))
-        layout.addWidget(system_label)
-        layout.addWidget(self.system_combo)
+        main_layout.addWidget(system_label)
+        main_layout.addWidget(self.system_combo)
 
         planet_label = QLabel("Select Planet:")
         self.planet_combo = QComboBox()
         self.planet_combo.currentIndexChanged.connect(lambda: self.update_terminals(self.planet_combo))
-        layout.addWidget(planet_label)
-        layout.addWidget(self.planet_combo)
+        main_layout.addWidget(planet_label)
+        main_layout.addWidget(self.planet_combo)
 
         terminal_label = QLabel("Select Terminal:")
         self.terminal_search_input = QLineEdit()
@@ -150,53 +151,72 @@ class UexcorpTrader(QWidget):
         self.terminal_combo = QComboBox()
         self.terminal_combo.setEditable(False)
         self.terminal_combo.currentIndexChanged.connect(lambda: self.update_commodities(self.terminal_combo))
-        layout.addWidget(terminal_label)
-        layout.addWidget(self.terminal_search_input)
-        layout.addWidget(self.terminal_combo)
+        main_layout.addWidget(terminal_label)
+        main_layout.addWidget(self.terminal_search_input)
+        main_layout.addWidget(self.terminal_combo)
 
-        commodity_label = QLabel("Select Commodity:")
-        self.commodity_list = QListWidget()
-        self.commodity_list.currentItemChanged.connect(
-            lambda: asyncio.ensure_future(self.update_price(self.commodity_list, self.terminal_combo))  # Correctly schedule the coroutine
+        # Create a horizontal layout for the commodity lists
+        commodity_layout = QHBoxLayout()
+
+        # Buy list
+        buy_layout = QVBoxLayout()
+        commodity_buy_label = QLabel("Commodities to Buy:")
+        self.commodity_buy_list = QListWidget()
+        self.commodity_buy_list.currentItemChanged.connect(
+            lambda: asyncio.ensure_future(self.update_price(self.commodity_buy_list, self.terminal_combo, is_buy=True))
         )
-        layout.addWidget(commodity_label)
-        layout.addWidget(self.commodity_list)
+        buy_layout.addWidget(commodity_buy_label)
+        buy_layout.addWidget(self.commodity_buy_list)
+        commodity_layout.addLayout(buy_layout)
+
+        # Sell list
+        sell_layout = QVBoxLayout()
+        commodity_sell_label = QLabel("Commodities to Sell:")
+        self.commodity_sell_list = QListWidget()
+        self.commodity_sell_list.currentItemChanged.connect(
+            lambda: asyncio.ensure_future(self.update_price(self.commodity_sell_list, self.terminal_combo, is_buy=False))
+        )
+        sell_layout.addWidget(commodity_sell_label)
+        sell_layout.addWidget(self.commodity_sell_list)
+        commodity_layout.addLayout(sell_layout)
+
+        main_layout.addLayout(commodity_layout)
 
         amount_label = QLabel("Amount (SCU):")
         self.amount_input = QLineEdit()
         self.amount_input.setValidator(QIntValidator(0, 1000000))
-        layout.addWidget(amount_label)
-        layout.addWidget(self.amount_input)
+        main_layout.addWidget(amount_label)
+        main_layout.addWidget(self.amount_input)
 
         # Buy Price
         self.buy_price_label = QLabel("Buy Price (UEC/SCU):")
         self.buy_price_input = QLineEdit()
         self.buy_price_input.setValidator(QDoubleValidator(0.0, 1000000.0, 2))
         self.buy_price_input.setReadOnly(True)  # Initially read-only
-        layout.addWidget(self.buy_price_label)
-        layout.addWidget(self.buy_price_input)
+        main_layout.addWidget(self.buy_price_label)
+        main_layout.addWidget(self.buy_price_input)
 
         # Sell Price
         self.sell_price_label = QLabel("Sell Price (UEC/SCU):")
         self.sell_price_input = QLineEdit()
         self.sell_price_input.setValidator(QDoubleValidator(0.0, 1000000.0, 2))
         self.sell_price_input.setReadOnly(True)  # Initially read-only
-        layout.addWidget(self.sell_price_label)
-        layout.addWidget(self.sell_price_input)
+        main_layout.addWidget(self.sell_price_label)
+        main_layout.addWidget(self.sell_price_input)
 
         # Buy Button
         self.buy_button = QPushButton("Buy Commodity")
         self.buy_button.clicked.connect(lambda: asyncio.ensure_future(self.buy_commodity()))
         self.buy_button.setEnabled(False)  # Initially disabled
-        layout.addWidget(self.buy_button)
+        main_layout.addWidget(self.buy_button)
 
         # Sell Button
         self.sell_button = QPushButton("Sell Commodity")
         self.sell_button.clicked.connect(lambda: asyncio.ensure_future(self.sell_commodity()))
         self.sell_button.setEnabled(False)  # Initially disabled
-        layout.addWidget(self.sell_button)
+        main_layout.addWidget(self.sell_button)
 
-        trade_tab.setLayout(layout)
+        trade_tab.setLayout(main_layout)
         return trade_tab
 
     async def load_data(self):
@@ -270,6 +290,14 @@ class UexcorpTrader(QWidget):
         terminal_id = terminal_combo.currentData()
         self.logger.debug(f"Selected terminal ID: {terminal_id}")
         if terminal_id:
+            # Reset buy and sell prices
+            self.buy_price_input.setText("")
+            self.sell_price_input.setText("")
+            self.buy_price_input.setReadOnly(True)
+            self.sell_price_input.setReadOnly(True)
+            self.buy_button.setEnabled(False)
+            self.sell_button.setEnabled(False)
+            
             asyncio.ensure_future(self.update_commodities_async(terminal_id, terminal_combo))
 
     async def update_commodities_async(self, terminal_id, terminal_combo):
@@ -282,22 +310,27 @@ class UexcorpTrader(QWidget):
             self.log_api_output(f"Error loading commodities: {e}", level=logging.ERROR)
 
     def update_commodity_list(self):
-        self.commodity_list.clear()
+        self.commodity_buy_list.clear()
+        self.commodity_sell_list.clear()
         for commodity in self.commodities.get("data", []):
-            # Store commodity_id as user data, converting to QVariant
-            item_show = commodity["commodity_name"] + " - buy"
+            item = QListWidgetItem(commodity["commodity_name"])
+            item.setData(Qt.UserRole, QVariant(commodity["id_commodity"]))
+            
+            if commodity["price_buy"] > 0:
+                self.commodity_buy_list.addItem(item.clone())
+            
             if commodity["price_sell"] > 0:
-                item_show = commodity["commodity_name"] + " - sell"
-            item = QListWidgetItem(item_show)
-            item.setData(Qt.UserRole, QVariant(commodity["id_commodity"])) 
-            self.commodity_list.addItem(item)
+                self.commodity_sell_list.addItem(item.clone())
+        
         self.logger.debug(f"Commodities updated: {self.commodities}")
         
-        # Make sure update_price is awaited
-        if self.commodity_list.count() > 0:
-            asyncio.ensure_future(self.update_price(self.commodity_list, self.terminal_combo))
+        # Update prices for the first item in each list if available
+        if self.commodity_buy_list.count() > 0:
+            asyncio.ensure_future(self.update_price(self.commodity_buy_list, self.terminal_combo, is_buy=True))
+        if self.commodity_sell_list.count() > 0:
+            asyncio.ensure_future(self.update_price(self.commodity_sell_list, self.terminal_combo, is_buy=False))
 
-    async def update_price(self, commodity_list, terminal_combo):
+    async def update_price(self, commodity_list, terminal_combo, is_buy):
         id_commodity = commodity_list.currentItem().data(Qt.UserRole) if commodity_list.currentItem() else None
         terminal_id = terminal_combo.currentData()
         self.logger.debug(f"Selected commodity ID: {id_commodity}, terminal ID: {terminal_id}")
@@ -308,18 +341,16 @@ class UexcorpTrader(QWidget):
                     params={'id_commodity': id_commodity, 'id_terminal': terminal_id},
                 )
                 if prices and prices.get("data"):
-                    buy_price = prices["data"][0]["price_buy"]
-                    sell_price = prices["data"][0]["price_sell"]
-
-                    # Update buy price and enable/disable input
-                    self.buy_price_input.setText(str(buy_price) if buy_price else "0")
-                    self.buy_price_input.setReadOnly(buy_price == 0)
-                    self.buy_button.setEnabled(buy_price != 0)
-
-                    # Update sell price and enable/disable input
-                    self.sell_price_input.setText(str(sell_price) if sell_price else "0")
-                    self.sell_price_input.setReadOnly(sell_price == 0)
-                    self.sell_button.setEnabled(sell_price != 0)
+                    price = prices["data"][0]["price_buy"] if is_buy else prices["data"][0]["price_sell"]
+                    
+                    if is_buy:
+                        self.buy_price_input.setText(str(price) if price else "0")
+                        self.buy_price_input.setReadOnly(price == 0)
+                        self.buy_button.setEnabled(price != 0)
+                    else:
+                        self.sell_price_input.setText(str(price) if price else "0")
+                        self.sell_price_input.setReadOnly(price == 0)
+                        self.sell_button.setEnabled(price != 0)
 
             except Exception as e:
                 self.log_api_output(f"Error loading prices: {e}", level=logging.ERROR)
@@ -377,16 +408,25 @@ class UexcorpTrader(QWidget):
         return dark_palette
 
     async def buy_commodity(self):
-        await self.perform_trade("buy")
+        await self.perform_trade(self.commodity_buy_list, is_buy=True)
 
     async def sell_commodity(self):
-        await self.perform_trade("sell")
+        await self.perform_trade(self.commodity_sell_list, is_buy=False)
 
-    async def perform_trade(self, operation):
+    async def perform_trade(self, commodity_list, is_buy):
+        selected_item = commodity_list.currentItem()
+        if not selected_item:
+            QMessageBox.warning(self, "Error", "Please select a commodity.")
+            return
+        
+        operation = "sell"
+        if is_buy:
+            operation = "buy"
+
         logger = logging.getLogger(__name__)
         try:
             terminal_id = self.terminal_combo.currentData()
-            id_commodity = self.commodity_list.currentItem().data(Qt.UserRole) if self.commodity_list.currentItem() else None
+            id_commodity = commodity_list.currentItem().data(Qt.UserRole) if commodity_list.currentItem() else None
             amount = self.amount_input.text()
 
             logger.debug(f"Attempting trade - Operation: {operation}, Terminal ID: {terminal_id}, Commodity ID: {id_commodity}, Amount: {amount}")
@@ -408,7 +448,7 @@ class UexcorpTrader(QWidget):
             # Get the price from the input field, depending on buy/sell operation
             price = float(self.buy_price_input.text()) if operation == "buy" else float(self.sell_price_input.text())
 
-            current_item = self.commodity_list.currentItem()
+            current_item = commodity_list.currentItem()
             if current_item:
                 commodity_id = current_item.data(Qt.UserRole)
             else:
