@@ -16,7 +16,7 @@ from PyQt5.QtWidgets import (
     QListWidgetItem
 )
 import re
-from PyQt5.QtGui import QDoubleValidator, QIntValidator, QPalette, QColor
+from PyQt5.QtGui import QDoubleValidator, QIntValidator, QPalette, QColor, QIcon
 from PyQt5.QtCore import Qt, QVariant
 from api import API
 from config_manager import ConfigManager
@@ -64,6 +64,8 @@ class UexcorpTrader(QWidget):
         self.setWindowTitle("UEXcorp Trader")
         self.setWindowFlags(Qt.Window | Qt.WindowTitleHint | Qt.WindowSystemMenuHint | Qt.WindowMinMaxButtonsHint |
                             Qt.WindowCloseButtonHint)
+
+        self.setWindowIcon(QIcon("resources/UEXTrader_icon_resized.png"))
 
         tabs = QTabWidget()
         tabs.addTab(self.create_config_tab(), "Configuration")

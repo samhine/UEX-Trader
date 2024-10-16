@@ -2,6 +2,8 @@
 
 UEX-Trader is a desktop application designed to facilitate trading within the UEXcorp space trading ecosystem. The application allows users to configure API keys, toggle between production and debug modes, and trade commodities by selecting systems, planets, and terminals. Additionally, users can switch between Light and Dark appearance modes for better user experience.
 
+![UEX-Trader Icon](resources/UEXTrader_icon.png)
+
 ## Prerequisites
 
 Before you begin, ensure you have met the following requirements:
