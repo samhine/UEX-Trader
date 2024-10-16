@@ -146,7 +146,7 @@ class UexcorpTrader(QWidget):
         self.terminal_search_input.setPlaceholderText("Type to search terminals...")
         self.terminal_search_input.textChanged.connect(self.filter_terminals)
         self.terminal_combo = QComboBox()
-        self.terminal_combo.setEditable(True)
+        self.terminal_combo.setEditable(False)
         self.terminal_combo.currentIndexChanged.connect(lambda: self.update_commodities(self.terminal_combo))
         layout.addWidget(terminal_label)
         layout.addWidget(self.terminal_search_input)
