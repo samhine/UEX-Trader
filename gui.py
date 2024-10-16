@@ -91,9 +91,21 @@ class UexcorpTrader(QWidget):
         self.api_key_input = QLineEdit(self.api_key)
         self.api_key_input.setEchoMode(QLineEdit.Password)  # Hide the api key
 
+        # Create the eye button
+        self.show_api_key_button = QPushButton("👁", self)
+        self.show_api_key_button.setFixedSize(30, 30)  # Adjust size as needed# Connect button press and release events
+        self.show_api_key_button.pressed.connect(self.show_api_key)
+        self.show_api_key_button.released.connect(self.hide_api_key)
+
         secret_key_label = QLabel("UEXcorp Secret Key:")
         self.secret_key_input = QLineEdit(self.config_manager.get_secret_key())
         self.secret_key_input.setEchoMode(QLineEdit.Password)  # Hide the secret key
+
+        # Create the eye button
+        self.show_secret_key_button = QPushButton("👁", self)
+        self.show_secret_key_button.setFixedSize(30, 30)  # Adjust size as needed# Connect button press and release events
+        self.show_secret_key_button.pressed.connect(self.show_secret_key)
+        self.show_secret_key_button.released.connect(self.hide_secret_key)
 
         is_production_label = QLabel("Is Production:")
         self.is_production_input = QComboBox()
@@ -115,8 +127,10 @@ class UexcorpTrader(QWidget):
 
         layout.addWidget(api_key_label)
         layout.addWidget(self.api_key_input)
+        layout.addWidget(self.show_api_key_button)
         layout.addWidget(secret_key_label)
         layout.addWidget(self.secret_key_input)
+        layout.addWidget(self.show_secret_key_button)
         layout.addWidget(is_production_label)
         layout.addWidget(self.is_production_input)
         layout.addWidget(debug_label)
@@ -127,6 +141,18 @@ class UexcorpTrader(QWidget):
 
         config_tab.setLayout(layout)
         return config_tab
+
+    def show_api_key(self):
+        self.api_key_input.setEchoMode(QLineEdit.Normal)
+
+    def hide_api_key(self):
+        self.api_key_input.setEchoMode(QLineEdit.Password)
+
+    def show_secret_key(self):
+        self.secret_key_input.setEchoMode(QLineEdit.Normal)
+
+    def hide_secret_key(self):
+        self.secret_key_input.setEchoMode(QLineEdit.Password)
 
     def create_trade_tab(self):
         trade_tab = QWidget()
