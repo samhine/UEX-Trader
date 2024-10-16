@@ -23,31 +23,38 @@ class ConfigManager:
         return base64.b64decode(encoded_key).decode('utf-8') if encoded_key else ""
 
     def set_api_key(self, key):
+        if "API" not in self.config:
+            self.config["API"] = {}
         encoded_key = base64.b64encode(key.encode('utf-8')).decode('utf-8')
-        self.config['API']['key'] = encoded_key  # Set the 'key' within the 'API' section
+        self.config['API']['key'] = encoded_key
         self.save_config()
 
     def get_secret_key(self):
-        """Retrieves the secret key from the config file."""
         encoded_secret_key = self.config.get("API", "secret_key", fallback="")
         return base64.b64decode(encoded_secret_key).decode('utf-8') if encoded_secret_key else ""
 
     def set_secret_key(self, secret_key):
+        if "API" not in self.config:
+            self.config["API"] = {}
         encoded_secret_key = base64.b64encode(secret_key.encode('utf-8')).decode('utf-8')
-        self.config['API']['secret_key'] = encoded_secret_key  # Set 'secret_key' within 'API'
+        self.config['API']['secret_key'] = encoded_secret_key
         self.save_config()
 
     def get_is_production(self):
         return self.config.getboolean("SETTINGS", "is_production", fallback=False)
 
     def set_is_production(self, is_production):
-        self.config["SETTINGS"] = {"is_production": str(is_production)}
+        if "SETTINGS" not in self.config:
+            self.config["SETTINGS"] = {}
+        self.config["SETTINGS"]["is_production"] = str(is_production)
         self.save_config()
 
     def get_debug(self):
         return self.config.getboolean("SETTINGS", "debug", fallback=False)
 
     def set_debug(self, debug):
+        if "SETTINGS" not in self.config:
+            self.config["SETTINGS"] = {}
         self.config["SETTINGS"]["debug"] = str(debug)
         self.save_config()
 
@@ -55,5 +62,19 @@ class ConfigManager:
         return self.config.get("SETTINGS", "appearance_mode", fallback="Light")
 
     def set_appearance_mode(self, mode):
+        if "SETTINGS" not in self.config:
+            self.config["SETTINGS"] = {}
         self.config["SETTINGS"]["appearance_mode"] = mode
         self.save_config()
+
+    def set_window_size(self, width, height):
+        if "GUI" not in self.config:
+            self.config["GUI"] = {}
+        self.config["GUI"]["window_width"] = str(width)
+        self.config["GUI"]["window_height"] = str(height)
+        self.save_config()
+
+    def get_window_size(self):
+        width = int(self.config.get("GUI", "window_width", fallback="800"))
+        height = int(self.config.get("GUI", "window_height", fallback="600"))
+        return width, height

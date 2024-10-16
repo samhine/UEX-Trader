@@ -56,9 +56,12 @@ class UexcorpTrader(QWidget):
         self.initUI()
         self.apply_appearance_mode()
 
+        # Load and set the window size
+        width, height = self.config_manager.get_window_size()
+        self.resize(width, height)
+
     def initUI(self):
         self.setWindowTitle("UEXcorp Trader")
-        self.resize(800, 600)
         self.setWindowFlags(Qt.Window | Qt.WindowTitleHint | Qt.WindowSystemMenuHint | Qt.WindowMinMaxButtonsHint |
                             Qt.WindowCloseButtonHint)
 
@@ -72,6 +75,10 @@ class UexcorpTrader(QWidget):
 
         # Ensure the load_data function is awaited
         asyncio.ensure_future(self.load_data())
+        
+    def closeEvent(self, event):
+        self.config_manager.set_window_size(self.width(), self.height())
+        super().closeEvent(event)
 
     def create_config_tab(self):
         config_tab = QWidget()
