@@ -290,6 +290,14 @@ class UexcorpTrader(QWidget):
         terminal_id = terminal_combo.currentData()
         self.logger.debug(f"Selected terminal ID: {terminal_id}")
         if terminal_id:
+            # Reset buy and sell prices
+            self.buy_price_input.setText("")
+            self.sell_price_input.setText("")
+            self.buy_price_input.setReadOnly(True)
+            self.sell_price_input.setReadOnly(True)
+            self.buy_button.setEnabled(False)
+            self.sell_button.setEnabled(False)
+            
             asyncio.ensure_future(self.update_commodities_async(terminal_id, terminal_combo))
 
     async def update_commodities_async(self, terminal_id, terminal_combo):
