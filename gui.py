@@ -295,7 +295,7 @@ class UexcorpTrader(QWidget):
 
         # Table to display results
         self.trade_route_table = QTableWidget()
-        self.trade_route_table.setColumnCount(11)  # Adjusted column count
+        self.trade_route_table.setColumnCount(12)  # Adjusted column count
         self.trade_route_table.setHorizontalHeaderLabels(
             [
                 "Destination",
@@ -308,7 +308,8 @@ class UexcorpTrader(QWidget):
                 "Total Margin",
                 "Stocks",
                 "Demand",
-                "Profit Margin"
+                "Profit Margin",
+                "Max Crate Size"
             ]
         )
         self.trade_route_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
@@ -358,15 +359,18 @@ class UexcorpTrader(QWidget):
             trade_routes = []
             departure_commodities = await self.api.fetch_data("/commodities_prices",
                                                               params={'id_terminal': departure_terminal_id})
-            self.logger.log(logging.INFO, f"Iterating through {len(departure_commodities.get('data', []))} commodities at departure terminal")
+            self.logger.log(logging.INFO,
+                             f"Iterating through {len(departure_commodities.get('data', []))} commodities at departure terminal")
             for departure_commodity in departure_commodities.get("data", []):
                 # Only get arrival terminals for commodities that can be bought in departure
                 if departure_commodity.get("price_buy") == 0:
                     continue
 
                 arrival_commodities = await self.api.fetch_data("/commodities_prices",
-                                                               params={'id_commodity': departure_commodity.get("id_commodity")})
-                self.logger.log(logging.INFO, f"Found {len(arrival_commodities.get('data', []))} terminals that might sell {departure_commodity.get('commodity_name')}")
+                                                               params={'id_commodity': departure_commodity.get(
+                                                                   "id_commodity")})
+                self.logger.log(logging.INFO,
+                                 f"Found {len(arrival_commodities.get('data', []))} terminals that might sell {departure_commodity.get('commodity_name')}")
 
                 for arrival_commodity in arrival_commodities.get("data", []):
                     # Check if terminal is available
@@ -386,7 +390,7 @@ class UexcorpTrader(QWidget):
 
                     buy_price = departure_commodity.get("price_buy", 0)
                     available_scu = departure_commodity.get("scu_buy", 0)
-                    
+
                     # Calculate trade route details
                     sell_price = arrival_commodity.get("price_sell", 0)
                     demand_scu = arrival_commodity.get("scu_sell_stock", 0) - arrival_commodity.get("scu_sell_users", 0)
@@ -404,6 +408,11 @@ class UexcorpTrader(QWidget):
                     unit_margin = (sell_price - buy_price)
                     total_margin = unit_margin * max_buyable_scu
                     profit_margin = unit_margin / buy_price
+
+                    # Fetch arrival terminal data # TODO - Optimize this by getting info from some cache
+                    arrival_terminal = await self.api.fetch_data("/terminals",
+                                                                params={'id': arrival_commodity.get("id_terminal")})
+                    arrival_terminal_mcs = arrival_terminal.get("data")[0].get("mcs")
 
                     trade_routes.append({
                         "destination": next(
@@ -424,7 +433,8 @@ class UexcorpTrader(QWidget):
                         "total_margin": str(total_margin) + " UEC",
                         "departure_scu_available": str(available_scu) + " SCU",
                         "arrival_demand_scu": str(demand_scu) + " SCU",
-                        "profit_margin": str(round(profit_margin * 100)) + "%"
+                        "profit_margin": str(round(profit_margin * 100)) + "%",
+                        "arrival_terminal_mcs": arrival_terminal_mcs
                     })
 
             # Sort trade routes by profit margin (descending)
