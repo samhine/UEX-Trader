@@ -532,7 +532,7 @@ class UexcorpTrader(QWidget):
         planet_id = planet_combo.currentData()
         text = terminal_search_input.text()
         terminal_combo.clear()
-        for terminal in self.terminals[str(planet_id)].get("data", []):
+        for terminal in self.terminals.get(str(planet_id), []).get("data", []):
             if terminal.get("is_available") == 1 and terminal.get("type") == "commodity" and text.lower() in terminal[
                 "name"
             ].lower():
@@ -692,7 +692,7 @@ class UexcorpTrader(QWidget):
                 raise ValueError("Please fill all fields.")
 
             if not re.match(r'^\d+$', amount):
-                raise ValueError("Amount must be a valid integer.")
+                raise ValueError("Amount meveust be a valid integer.")
 
             # Validate terminal and commodity
             if not self.terminals.get(str(planet_id), None):
