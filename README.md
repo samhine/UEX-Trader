@@ -99,6 +99,27 @@ Before you begin, ensure you have met the following requirements:
 
    - Click "Buy Commodity" to buy or "Sell Commodity" to sell the selected commodity.
 
+### Finding Trade Routes
+
+1. **Select Departure System, Planet, and Terminal:**
+
+   - Choose your desired departure location using the respective dropdown menus.
+
+2. **(Optional) Set Restrictions:**
+
+   - Check "Restrict to System" to limit trade routes within the selected departure system.
+   - Check "Restrict to Planet" to limit trade routes within the selected departure planet.
+
+3. **(Optional) Set Investment Limits:**
+
+   - Enter a value in "Max Investment" to limit the maximum investment for each trade route.
+   - Enter a value in "Max SCU" to limit the maximum SCU purchased for each trade route.
+   - Enter a value in "Min SCU at Departure" to filter out routes with insufficient SCU available at the departure terminal.
+
+4. **Initiate Search:**
+
+   - The application will automatically search and display the top 10 most profitable trade routes based on your selected criteria.
+
 ### Appearance Mode
 
 - **Light Mode:** Provides a standard light theme for the application.
