@@ -14,7 +14,11 @@ from PyQt5.QtWidgets import (
     QStyleFactory,
     QListWidget,
     QApplication,
-    QListWidgetItem
+    QListWidgetItem,
+    QCheckBox,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
 )
 import re
 from PyQt5.QtGui import QDoubleValidator, QIntValidator, QPalette, QColor, QIcon
@@ -44,9 +48,9 @@ class UexcorpTrader(QWidget):
         self.logger.debug("Logging level set to: %s", logging_level)  # Log the logging level
 
         self.api = API(
-            self.config_manager.get_api_key(), 
+            self.config_manager.get_api_key(),
             self.config_manager.get_secret_key(),  # Get secret_key here
-            self.is_production, 
+            self.is_production,
             self.debug
         )
         self.star_systems = []
@@ -71,6 +75,7 @@ class UexcorpTrader(QWidget):
         tabs = QTabWidget()
         tabs.addTab(self.create_config_tab(), "Configuration")
         tabs.addTab(self.create_trade_tab(), "Trade Commodity")
+        tabs.addTab(self.create_trade_route_tab(), "Find Trade Route")  # Add the new tab
 
         main_layout = QVBoxLayout()
         main_layout.addWidget(tabs)
@@ -245,10 +250,211 @@ class UexcorpTrader(QWidget):
         trade_tab.setLayout(main_layout)
         return trade_tab
 
+    def create_trade_route_tab(self):
+        trade_route_tab = QWidget()
+        layout = QVBoxLayout()
+
+        # Input parameters
+        self.max_scu_input = QLineEdit()
+        self.max_scu_input.setPlaceholderText("Enter Max SCU")
+        self.max_scu_input.setValidator(QIntValidator())
+
+        self.restrict_planet_checkbox = QCheckBox("Restrict to Current Planet")
+        self.restrict_system_checkbox = QCheckBox("Restrict to Current System")
+
+        self.max_investment_input = QLineEdit()
+        self.max_investment_input.setPlaceholderText("Enter Max Investment (UEC)")
+        self.max_investment_input.setValidator(QDoubleValidator())
+
+        self.departure_system_combo = QComboBox()
+        self.departure_system_combo.currentIndexChanged.connect(
+            lambda: self.update_planets(self.departure_system_combo, self.departure_planet_combo)
+        )
+        self.departure_planet_combo = QComboBox()
+        self.departure_planet_combo.currentIndexChanged.connect(
+            lambda: self.update_terminals(self.departure_planet_combo, self.departure_outpost_combo)
+        )
+        self.departure_outpost_combo = QComboBox()
+        self.departure_terminal_combo = QComboBox()
+
+        self.departure_min_scu_input = QLineEdit("0")
+        self.departure_min_scu_input.setValidator(QIntValidator())
+        self.arrival_min_scu_input = QLineEdit("0")
+        self.arrival_min_scu_input.setValidator(QIntValidator())
+
+        find_route_button = QPushButton("Find Trade Route")
+        find_route_button.clicked.connect(lambda: asyncio.ensure_future(self.find_trade_routes()))
+
+        # Table to display results
+        self.trade_route_table = QTableWidget()
+        self.trade_route_table.setColumnCount(12)  # Adjusted column count
+        self.trade_route_table.setHorizontalHeaderLabels(
+            [
+                "Departure Terminal",
+                "Arrival System",
+                "Arrival Planet",
+                "Arrival Outpost",
+                "Arrival Terminal",
+                "Commodity",
+                "Buy SCU",
+                "Investment (UEC)",
+                "Margin (UEC)",
+                "Departure SCU Available",
+                "Arrival SCU Required",
+                "Profit Margin"
+            ]
+        )
+        self.trade_route_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+
+        # Add input widgets to layout
+        layout.addWidget(QLabel("Max SCU:"))
+        layout.addWidget(self.max_scu_input)
+        layout.addWidget(self.restrict_planet_checkbox)
+        layout.addWidget(self.restrict_system_checkbox)
+        layout.addWidget(QLabel("Max Investment (UEC):"))
+        layout.addWidget(self.max_investment_input)
+        layout.addWidget(QLabel("Departure System:"))
+        layout.addWidget(self.departure_system_combo)
+        layout.addWidget(QLabel("Departure Planet:"))
+        layout.addWidget(self.departure_planet_combo)
+        layout.addWidget(QLabel("Departure Outpost:"))
+        layout.addWidget(self.departure_outpost_combo)
+        layout.addWidget(QLabel("Departure Terminal (Optional):"))
+        layout.addWidget(self.departure_terminal_combo)
+        layout.addWidget(QLabel("Departure Min SCU Available:"))
+        layout.addWidget(self.departure_min_scu_input)
+        layout.addWidget(QLabel("Arrival Min SCU Required:"))
+        layout.addWidget(self.arrival_min_scu_input)
+        layout.addWidget(find_route_button)
+        layout.addWidget(self.trade_route_table)
+
+        trade_route_tab.setLayout(layout)
+        return trade_route_tab
+
+    async def find_trade_routes(self):
+        self.trade_route_table.setRowCount(0)  # Clear previous results
+
+        try:
+            max_scu = int(self.max_scu_input.text()) if self.max_scu_input.text() else 0
+            restrict_planet = self.restrict_planet_checkbox.isChecked()
+            restrict_system = self.restrict_system_checkbox.isChecked()
+            max_investment = float(self.max_investment_input.text()) if self.max_investment_input.text() else 0
+            departure_system_id = self.departure_system_combo.currentData()
+            departure_planet_id = self.departure_planet_combo.currentData()
+            departure_outpost_id = self.departure_outpost_combo.currentData()
+            departure_terminal_id = self.departure_terminal_combo.currentData()
+            departure_min_scu = int(self.departure_min_scu_input.text()) if self.departure_min_scu_input.text() else 0
+            arrival_min_scu = int(self.arrival_min_scu_input.text()) if self.arrival_min_scu_input.text() else 0
+
+            # Basic input validation
+            if not all([max_scu, departure_system_id, departure_planet_id, departure_outpost_id]):
+                QMessageBox.warning(self, "Input Error",
+                                    "Please enter Max SCU and select Departure System, Planet, and Outpost.")
+                return
+
+            # Fetch all terminals (you can optimize this later to fetch only what's needed)
+            all_terminals = await self.api.fetch_data("/terminals")
+
+            # Filter departure terminals
+            departure_terminals = [
+                terminal for terminal in all_terminals.get("data", [])
+                if terminal.get("is_available") == 1 and terminal.get("type") == "commodity" and
+                terminal.get("id_planet") == departure_planet_id and
+                terminal.get("id_outpost") == departure_outpost_id and
+                (not departure_terminal_id or terminal.get("id") == departure_terminal_id)
+            ]
+
+            trade_routes = []
+            for departure_terminal in departure_terminals:
+                # Fetch commodities at the departure terminal
+                departure_commodities = await self.api.fetch_data(
+                    "/commodities_prices", params={'id_terminal': departure_terminal.get("id")}
+                )
+
+                for departure_commodity in departure_commodities.get("data", []):
+                    # Filter arrival terminals based on restrictions
+                    arrival_terminals = [
+                        terminal for terminal in all_terminals.get("data", [])
+                        if terminal.get("is_available") == 1 and terminal.get("type") == "commodity" and
+                        (not restrict_system or terminal.get("id_star_system") == departure_system_id) and
+                        (not restrict_planet or terminal.get("id_planet") == departure_planet_id) and
+                        terminal.get("id") != departure_terminal.get("id")  # Exclude the departure terminal
+                    ]
+
+                    for arrival_terminal in arrival_terminals:
+                        # Fetch commodity price at the arrival terminal
+                        arrival_commodity_data = await self.api.fetch_data(
+                            "/commodities_prices",
+                            params={'id_terminal': arrival_terminal.get("id"),
+                                    'id_commodity': departure_commodity.get("id_commodity")}
+                        )
+
+                        if arrival_commodity_data.get("data"):
+                            arrival_commodity = arrival_commodity_data["data"][0]
+
+                            # Calculate trade route details
+                            buy_price = departure_commodity.get("price_buy", 0)
+                            sell_price = arrival_commodity.get("price_sell", 0)
+                            available_scu = departure_commodity.get("available_scu", 0)
+                            demand_scu = arrival_commodity.get("demand_scu", 0)
+
+                            # Skip if buy or sell price is 0 or if SCU requirements aren't met
+                            if not buy_price or not sell_price or available_scu < departure_min_scu or demand_scu < arrival_min_scu:
+                                continue
+
+                            max_buyable_scu = min(max_scu, available_scu, int(max_investment // buy_price))
+                            if max_buyable_scu == 0:
+                                continue
+
+                            investment = buy_price * max_buyable_scu
+                            margin = (sell_price - buy_price) * max_buyable_scu
+                            profit_margin = (sell_price - buy_price) / buy_price if buy_price else 0
+
+                            trade_routes.append({
+                                "departure_terminal": departure_terminal.get("name"),
+                                "arrival_system": next(
+                                    (system["name"] for system in self.star_systems.get("data", [])
+                                     if system["id"] == arrival_terminal.get("id_star_system")),
+                                    "Unknown System"
+                                ),
+                                "arrival_planet": next(
+                                    (planet["name"] for planet in self.planets
+                                     if planet["id"] == arrival_terminal.get("id_planet")),
+                                    "Unknown Planet"
+                                ),
+                                "arrival_outpost": next(
+                                    (outpost["name"] for outpost in self.terminals.get("data", [])
+                                     if outpost["id"] == arrival_terminal.get("id_outpost")),
+                                    "Unknown Outpost"
+                                ),
+                                "arrival_terminal": arrival_terminal.get("name"),
+                                "commodity": departure_commodity.get("commodity_name"),
+                                "buy_scu": max_buyable_scu,
+                                "investment": investment,
+                                "margin": margin,
+                                "departure_scu_available": available_scu,
+                                "arrival_scu_required": demand_scu,
+                                "profit_margin": profit_margin
+                            })
+
+            # Sort trade routes by profit margin (descending)
+            trade_routes.sort(key=lambda x: x["profit_margin"], reverse=True)
+
+            # Display up to the top 10 results
+            for i, route in enumerate(trade_routes[:10]):
+                self.trade_route_table.insertRow(i)
+                for j, value in enumerate(route.values()):
+                    item = QTableWidgetItem(str(value))
+                    self.trade_route_table.setItem(i, j, item)
+
+        except Exception as e:
+            self.log_api_output(f"An error occurred while finding trade routes: {e}", level=logging.ERROR)
+            QMessageBox.critical(self, "Error", f"An error occurred: {e}")
+
     async def load_data(self):
         try:
             self.star_systems = await self.api.fetch_data("/star_systems")
-            self.log_api_output(f"Star Systems Loaded: {self.star_systems}", level=logging.INFO)
+            self.log_api_output(f"Star Systems Loaded: {len(self.star_systems)}", level=logging.INFO)
             self.update_system_combos()
         except Exception as e:
             self.log_api_output(f"Error loading initial data: {e}", level=logging.ERROR)
@@ -256,49 +462,58 @@ class UexcorpTrader(QWidget):
     def update_system_combos(self):
         self.log_api_output("Updating system combos...", level=logging.INFO)
         self.system_combo.clear()
+        self.departure_system_combo.clear()  # Update the new system combo
         for star_system in self.star_systems.get("data", []):
             if star_system.get("is_available") == 1:
                 self.system_combo.addItem(star_system["name"], star_system["id"])
+                self.departure_system_combo.addItem(star_system["name"], star_system["id"])
         self.log_api_output("System combos updated.", level=logging.INFO)
 
-    def update_planets(self, system_combo):
+    def update_planets(self, system_combo, planet_combo=None):
         system_id = system_combo.currentData()
-        self.logger.debug(f"Selected system ID: {system_id}")
+        self.logger.debug(f"update_planets function - Selected system ID: {system_id}")
         if system_id:
-            asyncio.ensure_future(self.update_planets_async(system_id, system_combo))
+            self.logger.debug(f"update_planets function - System ID is valid, calling update_planets_async")
+            asyncio.ensure_future(self.update_planets_async(system_id, system_combo, planet_combo))
+        else:
+            self.logger.debug(f"update_planets function - System ID is invalid")
 
-    async def update_planets_async(self, system_id, system_combo):
+    async def update_planets_async(self, system_id, system_combo, planet_combo=None):
+        self.logger.debug(f"update_planets_async function - Fetching planets for system ID: {system_id}")
         try:
             self.planets = await self.api.fetch_data("/planets", params={'id_star_system': system_id})
-            self.update_planet_combo()
+            self.logger.debug(f"update_planets_async function - Planets fetched: {len(self.planets)}")
+            self.update_planet_combo(planet_combo if planet_combo else self.planet_combo)
         except Exception as e:
             self.log_api_output(f"Error loading planets: {e}", level=logging.ERROR)
 
-    def update_planet_combo(self):
-        self.planet_combo.clear()
+    def update_planet_combo(self, planet_combo):
+        planet_combo.clear()
         for planet in self.planets.get("data", []):
-            self.planet_combo.addItem(planet["name"], planet["id"])
-        self.logger.debug(f"Planets updated: {self.planets}")
+            planet_combo.addItem(planet["name"], planet["id"])
+        self.logger.debug(f"Planets updated: {len(self.planets)}")
 
-    def update_terminals(self, planet_combo):
+    def update_terminals(self, planet_combo, terminal_combo=None):
         planet_id = planet_combo.currentData()
         self.logger.debug(f"Selected planet ID: {planet_id}")
         if planet_id:
-            asyncio.ensure_future(self.update_terminals_async(planet_id, planet_combo))
+            asyncio.ensure_future(self.update_terminals_async(planet_id, planet_combo, terminal_combo))
 
-    async def update_terminals_async(self, planet_id, planet_combo):
+    async def update_terminals_async(self, planet_id, planet_combo, terminal_combo=None):
         try:
             self.terminals = await self.api.fetch_data("/terminals", params={'id_planet': planet_id})
-            self.update_terminal_combo()
+            self.update_terminal_combo(terminal_combo if terminal_combo else self.terminal_combo)
         except Exception as e:
             self.log_api_output(f"Error loading terminals: {e}", level=logging.ERROR)
 
-    def update_terminal_combo(self):
-        self.terminal_combo.clear()
+    def update_terminal_combo(self, terminal_combo):
+        terminal_combo.clear()
+        if terminal_combo == self.departure_terminal_combo:
+            terminal_combo.addItem("All Terminals", None)  # Add "All Terminals" option
         for terminal in self.terminals.get("data", []):
             if terminal.get("is_available") == 1 and terminal.get("type") == "commodity":
-                self.terminal_combo.addItem(terminal["name"], terminal["id"])
-        self.logger.debug(f"Terminals updated: {self.terminals}")
+                terminal_combo.addItem(terminal["name"], terminal["id"])
+        self.logger.debug(f"Terminals updated: {len(self.terminals)}")
 
     def filter_terminals(self, text):
         self.terminal_combo.clear()
@@ -348,7 +563,7 @@ class UexcorpTrader(QWidget):
             if commodity["price_sell"] > 0:
                 self.commodity_sell_list.addItem(item.clone())
         
-        self.logger.debug(f"Commodities updated: {self.commodities}")
+        self.logger.debug(f"Commodities updated: {len(self.commodities)}")
         
         # Update prices for the first item in each list if available
         if self.commodity_buy_list.count() > 0:
