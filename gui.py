@@ -393,7 +393,8 @@ class UexcorpTrader(QWidget):
 
                     # Calculate trade route details
                     sell_price = arrival_commodity.get("price_sell", 0)
-                    demand_scu = arrival_commodity.get("scu_sell_stock", 0) - arrival_commodity.get("scu_sell_users", 0)
+                    demand_scu = arrival_commodity.get("scu_sell_stock", 0) - arrival_commodity.get(
+                        "scu_sell_users", 0)
 
                     # Skip if buy or sell price is 0 or if SCU requirements aren't met
                     if not buy_price or not sell_price or available_scu < departure_min_scu or not demand_scu:
@@ -409,7 +410,7 @@ class UexcorpTrader(QWidget):
                     total_margin = unit_margin * max_buyable_scu
                     profit_margin = unit_margin / buy_price
 
-                    # Fetch arrival terminal data # TODO - Optimize this by getting info from some cache
+                    # Fetch arrival terminal data
                     arrival_terminal = await self.api.fetch_data("/terminals",
                                                                 params={'id': arrival_commodity.get("id_terminal")})
                     arrival_terminal_mcs = arrival_terminal.get("data")[0].get("mcs")
@@ -436,16 +437,27 @@ class UexcorpTrader(QWidget):
                         "profit_margin": str(round(profit_margin * 100)) + "%",
                         "arrival_terminal_mcs": arrival_terminal_mcs
                     })
+                    self.trade_route_table.insertRow(len(trade_routes) - 1)
+                    for j, value in enumerate(trade_routes[len(trade_routes) - 1].values()):
+                        i = len(trade_routes) - 1
+                        item = QTableWidgetItem(str(value))
+                        self.trade_route_table.setItem(i, j, item)
 
             # Sort trade routes by profit margin (descending)
             trade_routes.sort(key=lambda x: float(x["total_margin"].split()[0]), reverse=True)
 
             # Display up to the top 10 results
+            self.trade_route_table.setRowCount(0)  # Clear the table before adding sorted results
             for i, route in enumerate(trade_routes[:10]):
                 self.trade_route_table.insertRow(i)
                 for j, value in enumerate(route.values()):
                     item = QTableWidgetItem(str(value))
                     self.trade_route_table.setItem(i, j, item)
+
+            if len(trade_routes) == 0:
+                self.trade_route_table.insertRow(0)
+                item = QTableWidgetItem("No results found")
+                self.trade_route_table.setItem(0, 0, item)
 
             self.logger.log(logging.INFO, "Finished calculating Trade routes")
         except Exception as e:
