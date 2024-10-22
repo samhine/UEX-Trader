@@ -681,6 +681,7 @@ class UexcorpTrader(QWidget):
 
         logger = logging.getLogger(__name__)
         try:
+            planet_id = self.terminal_combo.currentData()
             terminal_id = self.terminal_combo.currentData()
             id_commodity = commodity_list.currentItem().data(Qt.UserRole) if commodity_list.currentItem() else None
             amount = self.amount_input.text()
@@ -694,7 +695,7 @@ class UexcorpTrader(QWidget):
                 raise ValueError("Amount must be a valid integer.")
 
             # Validate terminal and commodity
-            if not any(terminal["id"] == terminal_id for terminal in self.terminals):
+            if not any(terminal.get('id') == terminal_id for terminal in self.terminals[str(planet_id)].get("data", [])):
                 raise ValueError("Selected terminal does not exist.")
             if not any(
                 commodity["id_commodity"] == id_commodity for commodity in self.commodities.get("data", [])
