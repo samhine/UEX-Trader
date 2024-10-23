@@ -2,12 +2,12 @@
 import asyncio
 import logging
 import aiohttp
+from cache_manager import CacheManager
 
 logger = logging.getLogger(__name__)
 
-
 class API:
-    def __init__(self, api_key, secret_key, is_production, debug):
+    def __init__(self, api_key, secret_key, is_production, debug, cache_ttl=300):
         self.API_BASE_URL = "https://uexcorp.space/api/2.0"
         if is_production:
             self.API_BASE_URL = "https://uexcorp.space/api/2.0"  # Replace with actual production URL
@@ -17,6 +17,7 @@ class API:
         self.is_production = is_production
         self.debug = debug
         self.session = aiohttp.ClientSession()
+        self.cache = CacheManager(ttl=cache_ttl)
 
     def update_credentials(self, api_key, secret_key):
         """Updates the API key and secret key."""
@@ -24,6 +25,12 @@ class API:
         self.secret_key = secret_key
 
     async def fetch_data(self, endpoint, params=None):
+        cache_key = f"{endpoint}_{params}"
+        cached_data = self.cache.get(cache_key)
+        if cached_data:
+            logger.debug(f"Cache hit for {cache_key}")
+            return cached_data
+
         url = f"{self.API_BASE_URL}{endpoint}"
         logger.debug(f"API Request: GET {url} {params if params else ''}")
         async with aiohttp.ClientSession() as session:
@@ -31,6 +38,7 @@ class API:
                 if response.status == 200:
                     data = await response.json()
                     logger.debug(f"API Response: {data}")
+                    self.cache.set(cache_key, data)
                     return data
                 else:
                     error_message = await response.text()

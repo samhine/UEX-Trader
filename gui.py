@@ -54,10 +54,6 @@ class UexcorpTrader(QWidget):
             self.is_production,
             self.debug
         )
-        self.star_systems = []
-        self.planets = []
-        self.terminals = {}
-        self.commodities = []
 
         self.initUI()
         self.apply_appearance_mode()
@@ -360,17 +356,17 @@ class UexcorpTrader(QWidget):
             departure_commodities = await self.api.fetch_data("/commodities_prices",
                                                               params={'id_terminal': departure_terminal_id})
             self.logger.log(logging.INFO,
-                             f"Iterating through {len(departure_commodities.get('data', []))} commodities at departure terminal")
+                            f"Iterating through {len(departure_commodities.get('data', []))} commodities at departure terminal")
             for departure_commodity in departure_commodities.get("data", []):
                 # Only get arrival terminals for commodities that can be bought in departure
                 if departure_commodity.get("price_buy") == 0:
                     continue
 
                 arrival_commodities = await self.api.fetch_data("/commodities_prices",
-                                                               params={'id_commodity': departure_commodity.get(
-                                                                   "id_commodity")})
+                                                                params={'id_commodity': departure_commodity.get(
+                                                                    "id_commodity")})
                 self.logger.log(logging.INFO,
-                                 f"Found {len(arrival_commodities.get('data', []))} terminals that might sell {departure_commodity.get('commodity_name')}")
+                                f"Found {len(arrival_commodities.get('data', []))} terminals that might sell {departure_commodity.get('commodity_name')}")
 
                 for arrival_commodity in arrival_commodities.get("data", []):
                     # Check if terminal is available
@@ -412,16 +408,16 @@ class UexcorpTrader(QWidget):
 
                     # Fetch arrival terminal data
                     arrival_terminal = await self.api.fetch_data("/terminals",
-                                                                params={'id': arrival_commodity.get("id_terminal")})
+                                                                 params={'id': arrival_commodity.get("id_terminal")})
                     arrival_terminal_mcs = arrival_terminal.get("data")[0].get("mcs")
 
                     trade_routes.append({
                         "destination": next(
-                            (system["name"] for system in self.star_systems.get("data", [])
+                            (system["name"] for system in (await self.api.fetch_data("/star_systems")).get("data", [])
                              if system["id"] == arrival_commodity.get("id_star_system")),
                             "Unknown System"
                         ) + " - " + next(
-                            (planet["name"] for planet in self.planets.get("data", [])
+                            (planet["name"] for planet in (await self.api.fetch_data("/planets", params={'id_star_system': arrival_commodity.get("id_star_system")})).get("data", [])
                              if planet["id"] == arrival_commodity.get("id_planet")),
                             "Unknown Planet"
                         ) + " / " + arrival_commodity.get("terminal_name"),
@@ -461,7 +457,7 @@ class UexcorpTrader(QWidget):
 
             self.logger.log(logging.INFO, "Finished calculating Trade routes")
         except Exception as e:
-            self.logger.log(logging.ERROR, f"An error occured while finding trade routes: {e}")
+            self.logger.log(logging.ERROR, f"An error occurred while finding trade routes: {e}")
             QMessageBox.critical(self, "Error", f"An error occurred: {e}")
 
     async def load_data(self):
@@ -476,7 +472,8 @@ class UexcorpTrader(QWidget):
         self.logger.log(logging.INFO, "Updating ALL system combos...")
         self.system_combo.clear()
         self.departure_system_combo.clear()  # Update the new system combo
-        for star_system in self.star_systems.get("data", []):
+        star_systems = self.star_systems.get("data", [])
+        for star_system in star_systems:
             if star_system.get("is_available") == 1:
                 self.system_combo.addItem(star_system["name"], star_system["id"])
                 self.departure_system_combo.addItem(star_system["name"], star_system["id"])
@@ -487,60 +484,62 @@ class UexcorpTrader(QWidget):
         self.logger.debug(f"update_planets function - Selected system: {system_combo.currentText()}")
         if system_id:
             self.logger.debug(f"update_planets function - System ID is valid, calling update_planets_async")
-            asyncio.ensure_future(self.update_planets_async(system_id, system_combo, planet_combo))
+            asyncio.ensure_future(self.update_planets_async(system_id, planet_combo))
         else:
             self.logger.debug(f"update_planets function - System ID is invalid")
 
-    async def update_planets_async(self, system_id, system_combo, planet_combo):
+    async def update_planets_async(self, system_id, planet_combo):
         self.logger.debug(f"update_planets_async function - Fetching planets for system ID: {system_id}")
         try:
-            self.planets = await self.api.fetch_data("/planets", params={'id_star_system': system_id})
-            self.logger.debug(f"update_planets_async function - Planets fetched: {len(self.planets)}")
-            self.update_planet_combo(planet_combo)
+            planets = await self.api.fetch_data("/planets", params={'id_star_system': system_id})
+            self.logger.debug(f"update_planets_async function - Planets fetched: {len(planets)}")
+            self.update_planet_combo(planet_combo, planets)
         except Exception as e:
             self.logger.log(logging.ERROR, f"Error loading planets: {e}")
 
-    def update_planet_combo(self, planet_combo):
+    def update_planet_combo(self, planet_combo, planets):
         combo_box_name = planet_combo.objectName()
         self.logger.debug(f"update_planet_combo function - Updating planet combo box: {combo_box_name}")
         planet_combo.clear()
-        for planet in self.planets.get("data", []):
+        for planet in planets.get("data", []):
             planet_combo.addItem(planet["name"], planet["id"])
-        self.logger.debug(f"update_planet_combo function - Planets updated: {len(self.planets)}")
+        self.logger.debug(f"update_planet_combo function - Planets updated: {len(planets)}")
 
     def update_terminals(self, planet_combo, terminal_combo):
         planet_id = planet_combo.currentData()
         self.logger.debug(f"Selected planet: {planet_combo.currentText()}")
         if planet_id:
-            asyncio.ensure_future(self.update_terminals_async(planet_id, planet_combo, terminal_combo))
+            asyncio.ensure_future(self.update_terminals_async(planet_id, terminal_combo))
 
-    async def update_terminals_async(self, planet_id, planet_combo, terminal_combo):
+    async def update_terminals_async(self, planet_id, terminal_combo):
         try:
-            self.terminals[str(planet_id)] = await self.api.fetch_data("/terminals", params={'id_planet': planet_id})
-            self.update_terminal_combo(planet_id, terminal_combo)
+            terminals = await self.api.fetch_data("/terminals", params={'id_planet': planet_id})
+            self.update_terminal_combo(terminal_combo, terminals)
         except Exception as e:
             self.logger.log(logging.ERROR, f"Error loading terminals: {e}")
 
-    def update_terminal_combo(self, planet_id, terminal_combo):
+    def update_terminal_combo(self, terminal_combo, terminals):
         terminal_combo.clear()
-        for terminal in self.terminals[str(planet_id)].get("data", []):
+        for terminal in terminals.get("data", []):
             if terminal.get("is_available") == 1 and terminal.get("type") == "commodity":
                 terminal_combo.addItem(terminal["name"], terminal["id"])
-        self.logger.debug(f"Terminals updated: {len(self.terminals[str(planet_id)])}")
+        self.logger.debug(f"Terminals updated: {len(terminals)}")
 
     def filter_terminals(self, planet_combo, terminal_combo, terminal_search_input):
-        planet_id = planet_combo.currentData()
-        text = terminal_search_input.text()
-        terminal_combo.clear()
-        for terminal in self.terminals.get(str(planet_id), []).get("data", []):
-            if terminal.get("is_available") == 1 and terminal.get("type") == "commodity" and text.lower() in terminal[
-                "name"
-            ].lower():
-                terminal_combo.addItem(terminal["name"], terminal["id"])
-        # Ensure the first item is selected if available
-        if terminal_combo.count() > 0:
-            terminal_combo.setCurrentIndex(0)
-            self.update_commodities(terminal_combo)
+        async def filter_terminals_async():
+            planet_id = planet_combo.currentData()
+            text = terminal_search_input.text()
+            terminal_combo.clear()
+            terminals = await self.api.fetch_data("/terminals", params={'id_planet': planet_id})
+            for terminal in terminals.get("data", []):
+                if terminal.get("is_available") == 1 and terminal.get("type") == "commodity" and text.lower() in terminal["name"].lower():
+                    terminal_combo.addItem(terminal["name"], terminal["id"])
+            # Ensure the first item is selected if available
+            if terminal_combo.count() > 0:
+                terminal_combo.setCurrentIndex(0)
+                self.update_commodities(terminal_combo)
+        
+        asyncio.ensure_future(filter_terminals_async())
 
     def update_commodities(self, terminal_combo):
         terminal_id = terminal_combo.currentData()
@@ -554,9 +553,9 @@ class UexcorpTrader(QWidget):
             self.buy_button.setEnabled(False)
             self.sell_button.setEnabled(False)
             
-            asyncio.ensure_future(self.update_commodities_async(terminal_id, terminal_combo))
+            asyncio.ensure_future(self.update_commodities_async(terminal_id))
 
-    async def update_commodities_async(self, terminal_id, terminal_combo):
+    async def update_commodities_async(self, terminal_id):
         try:
             self.commodities = await self.api.fetch_data(
                 "/commodities_prices", params={'id_terminal': terminal_id}
@@ -692,12 +691,11 @@ class UexcorpTrader(QWidget):
                 raise ValueError("Please fill all fields.")
 
             if not re.match(r'^\d+$', amount):
-                raise ValueError("Amount meveust be a valid integer.")
+                raise ValueError("Amount must be a valid integer.")
 
             # Validate terminal and commodity
-            if not self.terminals.get(str(planet_id), None):
-                self.terminals[str(planet_id)] = await self.api.fetch_data("/terminals", params={'id_planet': planet_id})
-            if not any(terminal.get('id') == terminal_id for terminal in self.terminals[str(planet_id)].get("data", [])):
+            terminals = await self.api.fetch_data("/terminals", params={'id_planet': planet_id})
+            if not any(terminal.get('id') == terminal_id for terminal in terminals.get("data", [])):
                 raise ValueError("Selected terminal does not exist.")
             if not any(
                 commodity["id_commodity"] == id_commodity for commodity in self.commodities.get("data", [])
