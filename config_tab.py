@@ -94,8 +94,8 @@ class ConfigTab(QWidget):
         # Reconfigure logging based on the new debug setting
         debug = self.config_manager.get_debug()
         logging_level = logging.DEBUG if debug else logging.INFO
+        logging.getLogger().setLevel(logging_level)  # Update the root logger's level
         logger = logging.getLogger(__name__)
-        logger.setLevel(logging_level)
         logger.debug("Logging level set to: %s", logging_level)
 
         # Apply the new appearance mode
