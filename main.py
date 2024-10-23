@@ -10,7 +10,7 @@ if __name__ == "__main__":
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
 
-    trader = UexcorpTrader()
+    trader = UexcorpTrader(app)
     trader.show()
 
     with loop:
