@@ -36,6 +36,10 @@ class UexcorpTrader(QWidget):
         main_layout.addWidget(tabs)
         self.setLayout(main_layout)
 
+        # Restore window size
+        width, height = self.config_manager.get_window_size()
+        self.resize(width, height)
+
     def apply_appearance_mode(self, appearance_mode=None):
         if not appearance_mode:
             appearance_mode = self.config_manager.get_appearance_mode()
@@ -64,8 +68,13 @@ class UexcorpTrader(QWidget):
         dark_palette.setColor(QPalette.HighlightedText, Qt.black)
         return dark_palette
 
+    def closeEvent(self, event):
+        # Save window size
+        self.config_manager.set_window_size(self.width(), self.height())
+        super().closeEvent(event)
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    trader = UexcorpTrader()
+    trader = UexcorpTrader(app)
     trader.show()
     sys.exit(app.exec_())
