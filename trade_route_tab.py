@@ -6,6 +6,7 @@ import asyncio
 from api import API
 from config_manager import ConfigManager
 from functools import partial
+from trade_tab import TradeTab
 
 class TradeRouteTab(QWidget):
     def __init__(self, main_widget):
@@ -274,11 +275,19 @@ class TradeRouteTab(QWidget):
             QMessageBox.critical(self, "Error", f"An error occurred: {e}")
 
     def select_to_buy(self, trade_route):
-        trade_tab = self.main_widget.findChild(QWidget, "TradeTab")
+        self.logger.log(logging.INFO, "Selected route to buy")
+        trade_tab = self.main_widget.findChild(TradeTab)
         if trade_tab:
-            trade_tab.select_trade_route(trade_route, is_buy=True)
+            self.main_widget.loop.create_task(trade_tab.select_trade_route(trade_route, is_buy=True))
+        else:
+            self.logger.log(logging.ERROR, f"An error occurred while selecting trade route")
+            QMessageBox.critical(self, "Error", f"An error occurred")
 
     def select_to_sell(self, trade_route):
-        trade_tab = self.main_widget.findChild(QWidget, "TradeTab")
+        self.logger.log(logging.INFO, "Selected route to sell")
+        trade_tab = self.main_widget.findChild(TradeTab)
         if trade_tab:
-            trade_tab.select_trade_route(trade_route, is_buy=False)
+            self.main_widget.loop.create_task(trade_tab.select_trade_route(trade_route, is_buy=False))
+        else:
+            self.logger.log(logging.ERROR, f"An error occurred while selecting trade route")
+            QMessageBox.critical(self, "Error", f"An error occurred")

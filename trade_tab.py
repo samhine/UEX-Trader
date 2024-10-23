@@ -258,29 +258,36 @@ class TradeTab(QWidget):
             logger.exception(f"An unexpected error occurred: {e}")
             QMessageBox.critical(self, "Error", f"An error occurred: {e}")
 
-    def select_trade_route(self, trade_route, is_buy):
+    async def select_trade_route(self, trade_route, is_buy):
         logger = logging.getLogger(__name__)
         action = "buy" if is_buy else "sell"
         
         logger.info(f"Selecting trade route to {action} commodity.")
+        logger.debug(trade_route)
         
         # Select the system
         system_id = trade_route["departure_system_id"] if is_buy else trade_route["arrival_system_id"]
+        # TODO - Recover system_combo.currentIndexChanged event function and disable this event
         self.system_combo.setCurrentIndex(self.system_combo.findData(system_id))
         logger.info(f"Selected system ID: {system_id}")
-        asyncio.ensure_future(self.update_planets())
+        await self.update_planets()
+        # TODO - Restore system_combo.currentIndexChanged event function
         
         # Select the planet
         planet_id = trade_route["departure_planet_id"] if is_buy else trade_route["arrival_planet_id"]
+        # TODO - Recover planet_combo.currentIndexChanged event function and disable this event
         self.planet_combo.setCurrentIndex(self.planet_combo.findData(planet_id))
         logger.info(f"Selected planet ID: {planet_id}")
-        asyncio.ensure_future(self.update_terminals())
+        await self.update_terminals()
+        # TODO - Restore planet_combo.currentIndexChanged event function
         
         # Select the terminal
         terminal_id = trade_route["departure_terminal_id"] if is_buy else trade_route["arrival_terminal_id"]
+        # TODO - Recover terminal_combo.currentIndexChanged event function and disable this event
         self.terminal_combo.setCurrentIndex(self.terminal_combo.findData(terminal_id))
         logger.info(f"Selected terminal ID: {terminal_id}")
-        asyncio.ensure_future(self.update_commodities())
+        await self.update_commodities()
+        # TODO - Restore terminal_combo.currentIndexChanged event function
         
         # Select the commodity
         commodity_list = self.commodity_buy_list if is_buy else self.commodity_sell_list
