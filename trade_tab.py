@@ -1,7 +1,7 @@
 import logging
 import json
 import re
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QComboBox, QListWidget, QLineEdit, QPushButton, QMessageBox, QListWidgetItem
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QComboBox, QListWidget, QLineEdit, QPushButton, QMessageBox, QListWidgetItem, QTabWidget
 from PyQt5.QtCore import Qt
 import asyncio
 from api import API
@@ -107,7 +107,7 @@ class TradeTab(QWidget):
             planets = await self.api.fetch_data("/planets", params={'id_star_system': system_id})
             for planet in planets.get("data", []):
                 self.planet_combo.addItem(planet["name"], planet["id"])
-            logging.info("Planets loaded successfully.")
+            logging.info(f"Planets loaded successfully for star_system ID : {system_id}")
         except Exception as e:
             logging.error(f"Failed to load planets: {e}")
             QMessageBox.critical(self, "Error", f"Failed to load planets: {e}")
@@ -118,22 +118,29 @@ class TradeTab(QWidget):
         self.terminals = []
         planet_id = self.planet_combo.currentData()
         if not planet_id:
-            return
+            return []
         try:
             terminals = await self.api.fetch_data("/terminals", params={'id_planet': planet_id})
             self.terminals = [terminal for terminal in terminals.get("data", []) if terminal.get("type") == "commodity" and terminal.get("is_available") == 1]
             self.filter_terminals()
-            logging.info("Terminals loaded successfully.")
+            logging.info(f"Terminals loaded successfully for planet ID : {planet_id}")
+            return self.terminals
         except Exception as e:
             logging.error(f"Failed to load terminals: {e}")
             QMessageBox.critical(self, "Error", f"Failed to load terminals: {e}")
+            return []
 
-    def filter_terminals(self):
+    def filter_terminals(self, terminal_id=None):
         filter_text = self.terminal_filter_input.text().lower()
         self.terminal_combo.clear()
         for terminal in self.terminals:
             if filter_text in terminal["name"].lower():
                 self.terminal_combo.addItem(terminal["name"], terminal["id"])
+        
+        if terminal_id:
+            index = self.terminal_combo.findData(terminal_id)
+            if index != -1:
+                self.terminal_combo.setCurrentIndex(index)
 
     async def update_commodities(self):
         self.commodity_buy_list.clear()
@@ -155,7 +162,7 @@ class TradeTab(QWidget):
                     self.commodity_buy_list.addItem(item)
                 if commodity["price_sell"] > 0:
                     self.commodity_sell_list.addItem(item)
-            logging.info("Commodities loaded successfully.")
+            logging.info(f"Commodities loaded successfully for terminal ID : {terminal_id}")
         except Exception as e:
             logging.error(f"Failed to load commodities: {e}")
             QMessageBox.critical(self, "Error", f"Failed to load commodities: {e}")
@@ -257,3 +264,58 @@ class TradeTab(QWidget):
         except Exception as e:
             logger.exception(f"An unexpected error occurred: {e}")
             QMessageBox.critical(self, "Error", f"An error occurred: {e}")
+
+    async def select_trade_route(self, trade_route, is_buy):
+        logger = logging.getLogger(__name__)
+        action = "buy" if is_buy else "sell"
+        
+        logger.info(f"Selecting trade route to {action} commodity.")
+        logger.debug(trade_route)
+
+        tabManager = self.main_widget.findChild(QTabWidget)
+        tabManager.setCurrentIndex(1)
+        
+        self.system_combo.blockSignals(True)
+        self.planet_combo.blockSignals(True)
+        self.terminal_combo.blockSignals(True)
+
+        # Select the system
+        system_id = trade_route["departure_system_id"] if is_buy else trade_route["arrival_system_id"]
+        self.system_combo.setCurrentIndex(self.system_combo.findData(system_id))
+        logger.info(f"Selected system ID: {system_id}")
+        await self.update_planets()
+        
+        # Select the planet
+        planet_id = trade_route["departure_planet_id"] if is_buy else trade_route["arrival_planet_id"]
+        self.planet_combo.setCurrentIndex(self.planet_combo.findData(planet_id))
+        logger.info(f"Selected planet ID: {planet_id}")
+        
+        # Update terminals and select the correct one
+        terminal_id = trade_route["departure_terminal_id"] if is_buy else trade_route["arrival_terminal_id"]
+        terminals = await self.update_terminals()
+        if terminal_id in [terminal["id"] for terminal in terminals]:
+            self.filter_terminals(terminal_id)
+            logger.info(f"Selected terminal ID: {terminal_id}")
+        else:
+            logger.warning(f"Terminal ID {terminal_id} not found in the list of terminals")
+        
+        # Update commodities
+        await self.update_commodities()
+        
+        # Select the commodity
+        commodity_list = self.commodity_buy_list if is_buy else self.commodity_sell_list
+        commodity_id = trade_route["commodity_id"]
+        for i in range(commodity_list.count()):
+            item = commodity_list.item(i)
+            if item.data(Qt.UserRole) == commodity_id:
+                commodity_list.setCurrentItem(item)
+                logger.info(f"Selected commodity ID: {commodity_id}")
+                break
+        
+        # Update the amount
+        self.amount_input.setText(str(trade_route["max_buyable_scu"]))
+        logger.info(f"Set amount to: {trade_route['max_buyable_scu']}")
+
+        self.terminal_combo.blockSignals(False)
+        self.planet_combo.blockSignals(False)
+        self.system_combo.blockSignals(False)

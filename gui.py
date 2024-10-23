@@ -10,9 +10,10 @@ from logger_setup import setup_logger
 from config_manager import ConfigManager
 
 class UexcorpTrader(QWidget):
-    def __init__(self, app):
+    def __init__(self, app, loop):
         super().__init__()
         self.app = app
+        self.loop = loop
         self.config_manager = ConfigManager()
         self.setup_logger()
         self.initUI()

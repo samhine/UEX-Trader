@@ -1,10 +1,12 @@
 import logging
 import sys
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton, QTableWidget, QMessageBox, QTableWidgetItem
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton, QTableWidget, QMessageBox, QTableWidgetItem, QHBoxLayout
 from PyQt5.QtCore import Qt
 import asyncio
 from api import API
 from config_manager import ConfigManager
+from functools import partial
+from trade_tab import TradeTab
 
 class TradeRouteTab(QWidget):
     def __init__(self, main_widget):
@@ -122,7 +124,7 @@ class TradeRouteTab(QWidget):
         columns = [
             "Destination", "Commodity", "Buy SCU", "Buy Price", "Sell Price",
             "Investment", "Unit Margin", "Total Margin", "Departure SCU Available",
-            "Arrival Demand SCU", "Profit Margin", "Arrival Terminal MCS"
+            "Arrival Demand SCU", "Profit Margin", "Arrival Terminal MCS", "Actions"
         ]
         self.trade_route_table.setColumnCount(len(columns))
         self.trade_route_table.setHorizontalHeaderLabels(columns)
@@ -203,14 +205,35 @@ class TradeRouteTab(QWidget):
                         "departure_scu_available": str(available_scu) + " SCU",
                         "arrival_demand_scu": str(demand_scu) + " SCU",
                         "profit_margin": str(round(profit_margin * 100)) + "%",
-                        "arrival_terminal_mcs": arrival_terminal_mcs
+                        "arrival_terminal_mcs": arrival_terminal_mcs,
+                        "departure_system_id": departure_system_id,
+                        "departure_planet_id": departure_planet_id,
+                        "departure_terminal_id": departure_terminal_id,
+                        "arrival_system_id": arrival_commodity.get("id_star_system"),
+                        "arrival_planet_id": arrival_commodity.get("id_planet"),
+                        "arrival_terminal_id": arrival_commodity.get("id_terminal"),
+                        "commodity_id": departure_commodity.get("id_commodity"),
+                        "max_buyable_scu": max_buyable_scu
                     })
                     self.trade_route_table.insertRow(len(trade_routes) - 1)
                     for j, value in enumerate(trade_routes[len(trade_routes) - 1].values()):
                         i = len(trade_routes) - 1
-                        item = QTableWidgetItem(str(value))
-                        item.setFlags(item.flags() & ~Qt.ItemIsEditable)  # Make the item non-editable
-                        self.trade_route_table.setItem(i, j, item)
+                        if j < len(columns) - 1:
+                            item = QTableWidgetItem(str(value))
+                            item.setFlags(item.flags() & ~Qt.ItemIsEditable)  # Make the item non-editable
+                            self.trade_route_table.setItem(i, j, item)
+                        else:
+                            # Add action buttons
+                            action_layout = QHBoxLayout()
+                            buy_button = QPushButton("Select to Buy")
+                            buy_button.clicked.connect(partial(self.select_to_buy, trade_routes[i]))
+                            sell_button = QPushButton("Select to Sell")
+                            sell_button.clicked.connect(partial(self.select_to_sell, trade_routes[i]))
+                            action_layout.addWidget(buy_button)
+                            action_layout.addWidget(sell_button)
+                            action_widget = QWidget()
+                            action_widget.setLayout(action_layout)
+                            self.trade_route_table.setCellWidget(i, j, action_widget)
 
             # Sort trade routes by profit margin (descending)
             trade_routes.sort(key=lambda x: float(x["total_margin"].split()[0]), reverse=True)
@@ -220,9 +243,22 @@ class TradeRouteTab(QWidget):
             for i, route in enumerate(trade_routes[:10]):
                 self.trade_route_table.insertRow(i)
                 for j, value in enumerate(route.values()):
-                    item = QTableWidgetItem(str(value))
-                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)  # Make the item non-editable
-                    self.trade_route_table.setItem(i, j, item)
+                    if j < len(columns) - 1:
+                        item = QTableWidgetItem(str(value))
+                        item.setFlags(item.flags() & ~Qt.ItemIsEditable)  # Make the item non-editable
+                        self.trade_route_table.setItem(i, j, item)
+                    else:
+                        # Add action buttons
+                        action_layout = QHBoxLayout()
+                        buy_button = QPushButton("Select to Buy")
+                        buy_button.clicked.connect(partial(self.select_to_buy, trade_routes[i]))
+                        sell_button = QPushButton("Select to Sell")
+                        sell_button.clicked.connect(partial(self.select_to_sell, trade_routes[i]))
+                        action_layout.addWidget(buy_button)
+                        action_layout.addWidget(sell_button)
+                        action_widget = QWidget()
+                        action_widget.setLayout(action_layout)
+                        self.trade_route_table.setCellWidget(i, j, action_widget)
 
             if len(trade_routes) == 0:
                 self.trade_route_table.insertRow(0)
@@ -237,3 +273,21 @@ class TradeRouteTab(QWidget):
         except Exception as e:
             self.logger.log(logging.ERROR, f"An error occurred while finding trade routes: {e}")
             QMessageBox.critical(self, "Error", f"An error occurred: {e}")
+
+    def select_to_buy(self, trade_route):
+        self.logger.log(logging.INFO, "Selected route to buy")
+        trade_tab = self.main_widget.findChild(TradeTab)
+        if trade_tab:
+            self.main_widget.loop.create_task(trade_tab.select_trade_route(trade_route, is_buy=True))
+        else:
+            self.logger.log(logging.ERROR, f"An error occurred while selecting trade route")
+            QMessageBox.critical(self, "Error", f"An error occurred")
+
+    def select_to_sell(self, trade_route):
+        self.logger.log(logging.INFO, "Selected route to sell")
+        trade_tab = self.main_widget.findChild(TradeTab)
+        if trade_tab:
+            self.main_widget.loop.create_task(trade_tab.select_trade_route(trade_route, is_buy=False))
+        else:
+            self.logger.log(logging.ERROR, f"An error occurred while selecting trade route")
+            QMessageBox.critical(self, "Error", f"An error occurred")
