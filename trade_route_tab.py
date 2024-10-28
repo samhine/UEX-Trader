@@ -58,10 +58,16 @@ class TradeRouteTab(QWidget):
 
         # Add checkboxes for filtering
         self.filter_system_checkbox = QCheckBox("Filter for Current System")
-        self.filter_system_checkbox.setChecked(True)
+        self.filter_system_checkbox.setChecked(True)  # Ensure this checkbox is checked by default
         self.filter_planet_checkbox = QCheckBox("Filter for Current Planet")
         layout.addWidget(self.filter_system_checkbox)
         layout.addWidget(self.filter_planet_checkbox)
+
+        # Add checkboxes for ignoring stocks and demand
+        self.ignore_stocks_checkbox = QCheckBox("Ignore Stocks")
+        self.ignore_demand_checkbox = QCheckBox("Ignore Demand")
+        layout.addWidget(self.ignore_stocks_checkbox)
+        layout.addWidget(self.ignore_demand_checkbox)
 
         find_route_button = QPushButton("Find Trade Route")
         find_route_button.clicked.connect(lambda: asyncio.ensure_future(self.find_trade_routes()))
@@ -176,10 +182,18 @@ class TradeRouteTab(QWidget):
 
                     buy_price = departure_commodity.get("price_buy", 0)
                     available_scu = departure_commodity.get("scu_buy", 0)
+                    original_available_scu = available_scu  # Store original available SCU
 
                     # Calculate trade route details
                     sell_price = arrival_commodity.get("price_sell", 0)
                     demand_scu = arrival_commodity.get("scu_sell_stock", 0) - arrival_commodity.get("scu_sell_users", 0)
+                    original_demand_scu = demand_scu  # Store original demand SCU
+
+                    # Adjust calculations based on checkboxes
+                    if self.ignore_stocks_checkbox.isChecked():
+                        available_scu = max_scu
+                    if self.ignore_demand_checkbox.isChecked():
+                        demand_scu = max_scu
 
                     # Skip if buy or sell price is 0 or if SCU requirements aren't met
                     if not buy_price or not sell_price or available_scu <= 0 or not demand_scu:
@@ -215,8 +229,8 @@ class TradeRouteTab(QWidget):
                         "investment": str(investment) + " UEC",
                         "unit_margin": str(unit_margin) + " UEC",
                         "total_margin": str(total_margin) + " UEC",
-                        "departure_scu_available": str(available_scu) + " SCU",
-                        "arrival_demand_scu": str(demand_scu) + " SCU",
+                        "departure_scu_available": str(original_available_scu) + " SCU",  # Show original available SCU
+                        "arrival_demand_scu": str(original_demand_scu) + " SCU",  # Show original demand SCU
                         "profit_margin": str(round(profit_margin * 100)) + "%",
                         "arrival_terminal_mcs": arrival_terminal_mcs,
                         "departure_system_id": departure_system_id,
