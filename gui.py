@@ -6,6 +6,7 @@ from PyQt5.QtCore import Qt
 from config_tab import ConfigTab
 from trade_tab import TradeTab
 from trade_route_tab import TradeRouteTab
+from best_trade_route import BestTradeRouteTab 
 from logger_setup import setup_logger
 from config_manager import ConfigManager
 
@@ -32,6 +33,7 @@ class UexcorpTrader(QWidget):
         tabs.addTab(ConfigTab(self), "Configuration")
         tabs.addTab(TradeTab(self), "Trade Commodity")
         tabs.addTab(TradeRouteTab(self), "Find Trade Route")
+        tabs.addTab(BestTradeRouteTab(self), "Best Trade Routes")
 
         main_layout = QVBoxLayout()
         main_layout.addWidget(tabs)

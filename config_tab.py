@@ -98,7 +98,4 @@ class ConfigTab(QWidget):
         logger = logging.getLogger(__name__)
         logger.debug("Logging level set to: %s", logging_level)
 
-        # Apply the new appearance mode
-        self.main_widget.apply_appearance_mode()
-
         QMessageBox.information(self, "Configuration", "Configuration saved successfully!")
