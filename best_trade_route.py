@@ -244,6 +244,10 @@ class BestTradeRouteTab(QWidget):
                             "profit_margin": str(round(profit_margin * 100)) + "%",
                             "departure_terminal_id": departure_terminal["id"],
                             "arrival_terminal_id": arrival_commodity.get("id_terminal"),
+                            "departure_system_id": departure_system_id,  # Add departure system ID
+                            "arrival_system_id": arrival_commodity.get("id_star_system"),  # Add arrival system ID
+                            "departure_planet_id": departure_terminal.get("id_planet"),  # Add departure planet ID
+                            "arrival_planet_id": arrival_commodity.get("id_planet"),  # Add arrival planet ID
                             "commodity_id": departure_commodity.get("id_commodity"),
                             "max_buyable_scu": max_buyable_scu
                         })
