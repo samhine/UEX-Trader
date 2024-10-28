@@ -1,6 +1,6 @@
 import logging
 import sys
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton, QTableWidget, QMessageBox, QTableWidgetItem, QHBoxLayout
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton, QTableWidget, QMessageBox, QTableWidgetItem, QHBoxLayout, QCheckBox
 from PyQt5.QtCore import Qt
 import asyncio
 from api import API
@@ -55,6 +55,13 @@ class TradeRouteTab(QWidget):
         layout.addWidget(terminal_label)
         layout.addWidget(self.terminal_filter_input)
         layout.addWidget(self.departure_terminal_combo)
+
+        # Add checkboxes for filtering
+        self.filter_system_checkbox = QCheckBox("Filter for Current System")
+        self.filter_system_checkbox.setChecked(True)
+        self.filter_planet_checkbox = QCheckBox("Filter for Current Planet")
+        layout.addWidget(self.filter_system_checkbox)
+        layout.addWidget(self.filter_planet_checkbox)
 
         find_route_button = QPushButton("Find Trade Route")
         find_route_button.clicked.connect(lambda: asyncio.ensure_future(self.find_trade_routes()))
@@ -159,6 +166,12 @@ class TradeRouteTab(QWidget):
 
                     # Check if terminal is the same as departure
                     if arrival_commodity.get("id_terminal") == departure_terminal_id:
+                        continue
+
+                    # Apply filters if checkboxes are checked
+                    if self.filter_system_checkbox.isChecked() and arrival_commodity.get("id_star_system") != departure_system_id:
+                        continue
+                    if self.filter_planet_checkbox.isChecked() and arrival_commodity.get("id_planet") != departure_planet_id:
                         continue
 
                     buy_price = departure_commodity.get("price_buy", 0)
