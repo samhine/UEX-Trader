@@ -49,6 +49,7 @@ class BestTradeRouteTab(QWidget):
         layout.addWidget(self.departure_planet_combo)
 
         self.destination_system_combo = QComboBox()
+        self.destination_system_combo.addItem("All Systems")  # Option to ignore specific destination system
         self.destination_system_combo.currentIndexChanged.connect(lambda: asyncio.ensure_future(self.update_destination_planets()))
         layout.addWidget(QLabel("Destination System:"))
         layout.addWidget(self.destination_system_combo)
@@ -122,10 +123,13 @@ class BestTradeRouteTab(QWidget):
         self.destination_planet_combo.clear()
         self.destination_planet_combo.addItem("All Planets")  # Option to ignore destination planet
         system_id = self.destination_system_combo.currentData()
-        if not system_id:
+        if not system_id and self.destination_system_combo.currentText() != "All Systems":
             return
         try:
-            planets = await self.api.fetch_data("/planets", params={'id_star_system': system_id})
+            params = {}
+            if self.destination_system_combo.currentText() != "All Systems":
+                params['id_star_system'] = system_id
+            planets = await self.api.fetch_data("/planets", params=params)
             for planet in planets.get("data", []):
                 self.destination_planet_combo.addItem(planet["name"], planet["id"])
             logging.info("Destination planets loaded successfully.")
@@ -139,7 +143,9 @@ class BestTradeRouteTab(QWidget):
         if not planet_id and self.destination_planet_combo.currentText() != "All Planets":
             return
         try:
-            params = {'id_star_system': self.destination_system_combo.currentData()}
+            params = {}
+            if self.destination_system_combo.currentText() != "All Systems":
+                params['id_star_system'] = self.destination_system_combo.currentData()
             if self.destination_planet_combo.currentText() != "All Planets":
                 params['id_planet'] = planet_id
             terminals = await self.api.fetch_data("/terminals", params=params)
@@ -167,12 +173,12 @@ class BestTradeRouteTab(QWidget):
             max_investment = float(self.max_investment_input.text()) if self.max_investment_input.text() else sys.maxsize
             departure_system_id = self.departure_system_combo.currentData()
             departure_planet_id = self.departure_planet_combo.currentData() if self.departure_planet_combo.currentText() != "All Planets" else None
-            destination_system_id = self.destination_system_combo.currentData()
+            destination_system_id = self.destination_system_combo.currentData() if self.destination_system_combo.currentText() != "All Systems" else None
             destination_planet_id = self.destination_planet_combo.currentData() if self.destination_planet_combo.currentText() != "All Planets" else None
 
             # Basic input validation
-            if not all([departure_system_id, destination_system_id]):
-                QMessageBox.warning(self, "Input Error", "Please Select Departure and Destination Systems.")
+            if not departure_system_id:
+                QMessageBox.warning(self, "Input Error", "Please Select a Departure System.")
                 return
 
             trade_routes = []
@@ -184,7 +190,10 @@ class BestTradeRouteTab(QWidget):
                     if departure_commodity.get("price_buy") == 0:
                         continue
 
-                    arrival_commodities = await self.api.fetch_data("/commodities_prices", params={'id_commodity': departure_commodity.get("id_commodity")})
+                    params = {'id_commodity': departure_commodity.get("id_commodity")}
+                    if destination_system_id:
+                        params['id_star_system'] = destination_system_id
+                    arrival_commodities = await self.api.fetch_data("/commodities_prices", params=params)
                     self.logger.log(logging.INFO, f"Found {len(arrival_commodities.get('data', []))} terminals that might sell {departure_commodity.get('commodity_name')}")
 
                     for arrival_commodity in arrival_commodities.get("data", []):
