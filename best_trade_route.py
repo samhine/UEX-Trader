@@ -206,13 +206,17 @@ class BestTradeRouteTab(QWidget):
                     if departure_commodity.get("price_buy") == 0:
                         continue
 
+                    arrival_commodities = await self.api.fetch_data("/commodities_prices", params={'id_commodity': departure_commodity.get("id_commodity")})
+                    self.logger.log(logging.INFO, f"Found {len(arrival_commodities.get('data', []))} terminals that might sell {departure_commodity.get('commodity_name')}")
                     for arrival_terminal in destination_terminals:
-                        arrival_commodities = await self.api.fetch_data("/commodities_prices", params={'id_terminal': arrival_terminal["id"], 'id_commodity': departure_commodity.get("id_commodity")})
-                        self.logger.log(logging.INFO, f"Found {len(arrival_commodities.get('data', []))} terminals that might sell {departure_commodity.get('commodity_name')}")
 
                         for arrival_commodity in arrival_commodities.get("data", []):
                             # Check if terminal is available
                             if arrival_commodity.get("is_available") == 0:
+                                continue
+
+                            # Check if terminal is not the one we search for
+                            if arrival_commodity.get("id_terminal") != arrival_terminal["id"]:
                                 continue
 
                             # Check if terminal is the same as departure
