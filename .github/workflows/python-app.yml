@@ -55,15 +55,11 @@ jobs:
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics --exclude=.venv,build,dist
     - name: Install xvfb
-      run: sudo apt-get install -y xvfb
-    - name: Enable core dumps
-      run: |
-        ulimit -c unlimited
-        echo '/tmp/core.%e.%p' | sudo tee /proc/sys/kernel/core_pattern
+      run: sudo apt-get install -y xvfb libxcb-xinerama0
     - name: Run minimal test with xvfb (no isolation)
       run: |
         xvfb-run -a pytest -v test_minimal.py
-    - name: Test with pytest & xvfb
+    - name: Test with pytest (isolated) & xvfb
       run: |
         xvfb-run -a pytest --isolate -v
     - name: Create artifact with pyinstaller
