@@ -1,12 +1,14 @@
 import logging
 import sys
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton, QTableWidget, QMessageBox, QTableWidgetItem, QHBoxLayout, QCheckBox
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox
+from PyQt5.QtWidgets import QPushButton, QTableWidget, QMessageBox, QTableWidgetItem, QHBoxLayout, QCheckBox
 from PyQt5.QtCore import Qt
 import asyncio
 from api import API
 from config_manager import ConfigManager
 from functools import partial
 from trade_tab import TradeTab  # Import TradeTab
+
 
 class BestTradeRouteTab(QWidget):
     def __init__(self, main_widget):
@@ -44,19 +46,22 @@ class BestTradeRouteTab(QWidget):
 
         self.departure_planet_combo = QComboBox()
         self.departure_planet_combo.addItem("All Planets")  # Option to ignore source planet
-        self.departure_planet_combo.currentIndexChanged.connect(lambda: asyncio.ensure_future(self.update_departure_terminals()))
+        self.departure_planet_combo.currentIndexChanged.connect(
+            lambda: asyncio.ensure_future(self.update_departure_terminals()))
         layout.addWidget(QLabel("Departure Planet:"))
         layout.addWidget(self.departure_planet_combo)
 
         self.destination_system_combo = QComboBox()
         self.destination_system_combo.addItem("All Systems")  # Option to ignore specific destination system
-        self.destination_system_combo.currentIndexChanged.connect(lambda: asyncio.ensure_future(self.update_destination_planets()))
+        self.destination_system_combo.currentIndexChanged.connect(
+            lambda: asyncio.ensure_future(self.update_destination_planets()))
         layout.addWidget(QLabel("Destination System:"))
         layout.addWidget(self.destination_system_combo)
 
         self.destination_planet_combo = QComboBox()
         self.destination_planet_combo.addItem("All Planets")  # Option to ignore destination planet
-        self.destination_planet_combo.currentIndexChanged.connect(lambda: asyncio.ensure_future(self.update_destination_terminals()))
+        self.destination_planet_combo.currentIndexChanged.connect(
+            lambda: asyncio.ensure_future(self.update_destination_terminals()))
         layout.addWidget(QLabel("Destination Planet:"))
         layout.addWidget(self.destination_planet_combo)
 
@@ -113,7 +118,8 @@ class BestTradeRouteTab(QWidget):
             if self.departure_planet_combo.currentText() != "All Planets":
                 params['id_planet'] = planet_id
             terminals = await self.api.fetch_data("/terminals", params=params)
-            self.terminals = [terminal for terminal in terminals.get("data", []) if terminal.get("type") == "commodity" and terminal.get("is_available") == 1]
+            self.terminals = [terminal for terminal in terminals.get("data", [])
+                              if terminal.get("type") == "commodity" and terminal.get("is_available") == 1]
             logging.info("Departure terminals loaded successfully.")
         except Exception as e:
             logging.error(f"Failed to load departure terminals: {e}")
@@ -149,7 +155,8 @@ class BestTradeRouteTab(QWidget):
             if self.destination_planet_combo.currentText() != "All Planets":
                 params['id_planet'] = planet_id
             terminals = await self.api.fetch_data("/terminals", params=params)
-            self.destination_terminals = [terminal for terminal in terminals.get("data", []) if terminal.get("type") == "commodity" and terminal.get("is_available") == 1]
+            self.destination_terminals = [terminal for terminal in terminals.get("data", [])
+                                          if terminal.get("type") == "commodity" and terminal.get("is_available") == 1]
             logging.info("Destination terminals loaded successfully.")
         except Exception as e:
             logging.error(f"Failed to load destination terminals: {e}")
@@ -172,9 +179,15 @@ class BestTradeRouteTab(QWidget):
             max_scu = int(self.max_scu_input.text()) if self.max_scu_input.text() else sys.maxsize
             max_investment = float(self.max_investment_input.text()) if self.max_investment_input.text() else sys.maxsize
             departure_system_id = self.departure_system_combo.currentData()
-            departure_planet_id = self.departure_planet_combo.currentData() if self.departure_planet_combo.currentText() != "All Planets" else None
-            destination_system_id = self.destination_system_combo.currentData() if self.destination_system_combo.currentText() != "All Systems" else None
-            destination_planet_id = self.destination_planet_combo.currentData() if self.destination_planet_combo.currentText() != "All Planets" else None
+            departure_planet_id = self.departure_planet_combo.currentData()
+            if self.departure_planet_combo.currentText() == "All Planets":
+                departure_planet_id = None
+            destination_system_id = self.destination_system_combo.currentData()
+            if self.destination_system_combo.currentText() == "All Systems":
+                destination_system_id = None
+            destination_planet_id = self.destination_planet_combo.currentData()
+            if self.destination_planet_combo.currentText() == "All Planets":
+                destination_planet_id = None
 
             # Basic input validation
             if not departure_system_id:
@@ -186,7 +199,8 @@ class BestTradeRouteTab(QWidget):
             if departure_planet_id:
                 departure_terminals_params['id_planet'] = departure_planet_id
             departure_terminals = await self.api.fetch_data("/terminals", params=departure_terminals_params)
-            departure_terminals = [terminal for terminal in departure_terminals.get("data", []) if terminal.get("type") == "commodity" and terminal.get("is_available") == 1]
+            departure_terminals = [terminal for terminal in departure_terminals.get("data", [])
+                                   if terminal.get("type") == "commodity" and terminal.get("is_available") == 1]
 
             # Fetch destination terminals
             destination_terminals_params = {}
@@ -195,19 +209,25 @@ class BestTradeRouteTab(QWidget):
             if destination_planet_id:
                 destination_terminals_params['id_planet'] = destination_planet_id
             destination_terminals = await self.api.fetch_data("/terminals", params=destination_terminals_params)
-            destination_terminals = [terminal for terminal in destination_terminals.get("data", []) if terminal.get("type") == "commodity" and terminal.get("is_available") == 1]
+            destination_terminals = [terminal for terminal in destination_terminals.get("data", [])
+                                     if terminal.get("type") == "commodity" and terminal.get("is_available") == 1]
 
             trade_routes = []
             for departure_terminal in departure_terminals:
-                departure_commodities = await self.api.fetch_data("/commodities_prices", params={'id_terminal': departure_terminal["id"]})
-                self.logger.log(logging.INFO, f"Iterating through {len(departure_commodities.get('data', []))} commodities at departure terminal {departure_terminal['name']}")
+                departure_commodities = await self.api.fetch_data("/commodities_prices",
+                                                                  params={'id_terminal': departure_terminal["id"]})
+                self.logger.log(logging.INFO, f"Iterating through {len(departure_commodities.get('data', []))} \
+                                commodities at departure terminal {departure_terminal['name']}")
                 for departure_commodity in departure_commodities.get("data", []):
                     # Only get arrival terminals for commodities that can be bought in departure
                     if departure_commodity.get("price_buy") == 0:
                         continue
 
-                    arrival_commodities = await self.api.fetch_data("/commodities_prices", params={'id_commodity': departure_commodity.get("id_commodity")})
-                    self.logger.log(logging.INFO, f"Found {len(arrival_commodities.get('data', []))} terminals that might sell {departure_commodity.get('commodity_name')}")
+                    arrival_commodities = await self.api.fetch_data("/commodities_prices",
+                                                                    params={'id_commodity':
+                                                                            departure_commodity.get("id_commodity")})
+                    self.logger.log(logging.INFO, f"Found {len(arrival_commodities.get('data', []))} \
+                                    terminals that might sell {departure_commodity.get('commodity_name')}")
                     for arrival_terminal in destination_terminals:
 
                         for arrival_commodity in arrival_commodities.get("data", []):
@@ -229,36 +249,40 @@ class BestTradeRouteTab(QWidget):
                             else:
                                 available_scu = departure_commodity.get("scu_buy", 0)
 
+                            scu_sell_stock = arrival_commodity.get("scu_sell_stock", 0)
+                            scu_sell_users = arrival_commodity.get("scu_sell_users", 0)
                             if self.ignore_demand_checkbox.isChecked():
                                 demand_scu = max_scu
                             else:
-                                demand_scu = arrival_commodity.get("scu_sell_stock", 0) - arrival_commodity.get("scu_sell_users", 0)
+                                demand_scu = scu_sell_stock - scu_sell_users
 
                             # Skip if buy or sell price is 0 or if SCU requirements aren't met
-                            if not departure_commodity.get("price_buy") or not arrival_commodity.get("price_sell") or available_scu <= 0 or not demand_scu:
+                            price_buy = departure_commodity.get("price_buy")
+                            price_sell = arrival_commodity.get("price_sell")
+                            if not price_buy or not price_sell or available_scu <= 0 or not demand_scu:
                                 continue
 
-                            max_buyable_scu = min(max_scu, available_scu, int(max_investment // departure_commodity.get("price_buy")), demand_scu)
+                            max_buyable_scu = min(max_scu, available_scu, int(max_investment // price_buy), demand_scu)
                             if max_buyable_scu <= 0:
                                 continue
 
-                            investment = departure_commodity.get("price_buy") * max_buyable_scu
-                            unit_margin = (arrival_commodity.get("price_sell") - departure_commodity.get("price_buy"))
+                            investment = price_buy * max_buyable_scu
+                            unit_margin = (price_sell - price_buy)
                             total_margin = unit_margin * max_buyable_scu
-                            profit_margin = unit_margin / departure_commodity.get("price_buy")
+                            profit_margin = unit_margin / price_buy
 
                             trade_routes.append({
                                 "departure": departure_terminal["name"],
                                 "destination": arrival_commodity["terminal_name"],
                                 "commodity": departure_commodity.get("commodity_name"),
                                 "buy_scu": str(max_buyable_scu) + " SCU",
-                                "buy_price": str(departure_commodity.get("price_buy")) + " UEC",
-                                "sell_price": str(arrival_commodity.get("price_sell")) + " UEC",
+                                "buy_price": str(price_buy) + " UEC",
+                                "sell_price": str(price_sell) + " UEC",
                                 "investment": str(investment) + " UEC",
                                 "unit_margin": str(unit_margin) + " UEC",
                                 "total_margin": str(total_margin) + " UEC",
                                 "departure_scu_available": str(departure_commodity.get("scu_buy", 0)) + " SCU",
-                                "arrival_demand_scu": str(arrival_commodity.get("scu_sell_stock", 0) - arrival_commodity.get("scu_sell_users", 0)) + " SCU",
+                                "arrival_demand_scu": str(scu_sell_stock - scu_sell_users) + " SCU",
                                 "profit_margin": str(round(profit_margin * 100)) + "%",
                                 "departure_terminal_id": departure_terminal["id"],
                                 "arrival_terminal_id": arrival_commodity.get("id_terminal"),
@@ -334,8 +358,8 @@ class BestTradeRouteTab(QWidget):
         if trade_tab:
             self.main_widget.loop.create_task(trade_tab.select_trade_route(trade_route, is_buy=True))
         else:
-            self.logger.log(logging.ERROR, f"An error occurred while selecting trade route")
-            QMessageBox.critical(self, "Error", f"An error occurred")
+            self.logger.log(logging.ERROR, "An error occurred while selecting trade route")
+            QMessageBox.critical(self, "Error", "An error occurred")
 
     def select_to_sell(self, trade_route):
         self.logger.log(logging.INFO, "Selected route to sell")
@@ -343,5 +367,5 @@ class BestTradeRouteTab(QWidget):
         if trade_tab:
             self.main_widget.loop.create_task(trade_tab.select_trade_route(trade_route, is_buy=False))
         else:
-            self.logger.log(logging.ERROR, f"An error occurred while selecting trade route")
-            QMessageBox.critical(self, "Error", f"An error occurred")
+            self.logger.log(logging.ERROR, "An error occurred while selecting trade route")
+            QMessageBox.critical(self, "Error", "An error occurred")

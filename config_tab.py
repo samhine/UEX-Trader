@@ -2,6 +2,7 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton
 from config_manager import ConfigManager
 import logging
 
+
 class ConfigTab(QWidget):
     def __init__(self, main_widget):
         super().__init__()

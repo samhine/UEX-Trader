@@ -1,12 +1,14 @@
 import logging
 import sys
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton, QTableWidget, QMessageBox, QTableWidgetItem, QHBoxLayout, QCheckBox
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox
+from PyQt5.QtWidgets import QPushButton, QTableWidget, QMessageBox, QTableWidgetItem, QHBoxLayout, QCheckBox
 from PyQt5.QtCore import Qt
 import asyncio
 from api import API
 from config_manager import ConfigManager
 from functools import partial
 from trade_tab import TradeTab
+
 
 class TradeRouteTab(QWidget):
     def __init__(self, main_widget):
@@ -115,7 +117,8 @@ class TradeRouteTab(QWidget):
             return
         try:
             terminals = await self.api.fetch_data("/terminals", params={'id_planet': planet_id})
-            self.terminals = [terminal for terminal in terminals.get("data", []) if terminal.get("type") == "commodity" and terminal.get("is_available") == 1]
+            self.terminals = [terminal for terminal in terminals.get("data", [])
+                              if terminal.get("type") == "commodity" and terminal.get("is_available") == 1]
             self.filter_terminals()
             logging.info("Terminals loaded successfully.")
         except Exception as e:
@@ -155,15 +158,20 @@ class TradeRouteTab(QWidget):
                 return
 
             trade_routes = []
-            departure_commodities = await self.api.fetch_data("/commodities_prices", params={'id_terminal': departure_terminal_id})
-            self.logger.log(logging.INFO, f"Iterating through {len(departure_commodities.get('data', []))} commodities at departure terminal")
+            departure_commodities = await self.api.fetch_data("/commodities_prices",
+                                                              params={'id_terminal': departure_terminal_id})
+            self.logger.log(logging.INFO, f"Iterating through {len(departure_commodities.get('data', []))} \
+                            commodities at departure terminal")
             for departure_commodity in departure_commodities.get("data", []):
                 # Only get arrival terminals for commodities that can be bought in departure
                 if departure_commodity.get("price_buy") == 0:
                     continue
 
-                arrival_commodities = await self.api.fetch_data("/commodities_prices", params={'id_commodity': departure_commodity.get("id_commodity")})
-                self.logger.log(logging.INFO, f"Found {len(arrival_commodities.get('data', []))} terminals that might sell {departure_commodity.get('commodity_name')}")
+                arrival_commodities = await self.api.fetch_data("/commodities_prices",
+                                                                params={'id_commodity':
+                                                                        departure_commodity.get("id_commodity")})
+                self.logger.log(logging.INFO, f"Found {len(arrival_commodities.get('data', []))} \
+                                terminals that might sell {departure_commodity.get('commodity_name')}")
 
                 for arrival_commodity in arrival_commodities.get("data", []):
                     # Check if terminal is available
@@ -175,9 +183,11 @@ class TradeRouteTab(QWidget):
                         continue
 
                     # Apply filters if checkboxes are checked
-                    if self.filter_system_checkbox.isChecked() and arrival_commodity.get("id_star_system") != departure_system_id:
+                    if self.filter_system_checkbox.isChecked() and \
+                       arrival_commodity.get("id_star_system") != departure_system_id:
                         continue
-                    if self.filter_planet_checkbox.isChecked() and arrival_commodity.get("id_planet") != departure_planet_id:
+                    if self.filter_planet_checkbox.isChecked() and \
+                       arrival_commodity.get("id_planet") != departure_planet_id:
                         continue
 
                     buy_price = departure_commodity.get("price_buy", 0)
@@ -185,8 +195,10 @@ class TradeRouteTab(QWidget):
                     original_available_scu = available_scu  # Store original available SCU
 
                     # Calculate trade route details
+                    scu_sell_stock = arrival_commodity.get("scu_sell_stock", 0)
+                    scu_sell_users = arrival_commodity.get("scu_sell_users", 0)
                     sell_price = arrival_commodity.get("price_sell", 0)
-                    demand_scu = arrival_commodity.get("scu_sell_stock", 0) - arrival_commodity.get("scu_sell_users", 0)
+                    demand_scu = scu_sell_stock - scu_sell_users
                     original_demand_scu = demand_scu  # Store original demand SCU
 
                     # Adjust calculations based on checkboxes
@@ -209,16 +221,20 @@ class TradeRouteTab(QWidget):
                     profit_margin = unit_margin / buy_price
 
                     # Fetch arrival terminal data
-                    arrival_terminal = await self.api.fetch_data("/terminals", params={'id': arrival_commodity.get("id_terminal")})
+                    arrival_terminal = await self.api.fetch_data("/terminals",
+                                                                 params={'id': arrival_commodity.get("id_terminal")})
                     arrival_terminal_mcs = arrival_terminal.get("data")[0].get("mcs")
 
+                    arrival_id_star_system = arrival_commodity.get("id_star_system")
                     trade_routes.append({
                         "destination": next(
                             (system["name"] for system in (await self.api.fetch_data("/star_systems")).get("data", [])
-                             if system["id"] == arrival_commodity.get("id_star_system")),
+                             if system["id"] == arrival_id_star_system),
                             "Unknown System"
                         ) + " - " + next(
-                            (planet["name"] for planet in (await self.api.fetch_data("/planets", params={'id_star_system': arrival_commodity.get("id_star_system")})).get("data", [])
+                            (planet["name"] for planet in (await self.api.fetch_data("/planets",
+                                                                                     params={'id_star_system':
+                                                                                             arrival_id_star_system})).get("data", [])
                              if planet["id"] == arrival_commodity.get("id_planet")),
                             "Unknown Planet"
                         ) + " / " + arrival_commodity.get("terminal_name"),
@@ -307,8 +323,8 @@ class TradeRouteTab(QWidget):
         if trade_tab:
             self.main_widget.loop.create_task(trade_tab.select_trade_route(trade_route, is_buy=True))
         else:
-            self.logger.log(logging.ERROR, f"An error occurred while selecting trade route")
-            QMessageBox.critical(self, "Error", f"An error occurred")
+            self.logger.log(logging.ERROR, "An error occurred while selecting trade route")
+            QMessageBox.critical(self, "Error", "An error occurred")
 
     def select_to_sell(self, trade_route):
         self.logger.log(logging.INFO, "Selected route to sell")
@@ -316,5 +332,5 @@ class TradeRouteTab(QWidget):
         if trade_tab:
             self.main_widget.loop.create_task(trade_tab.select_trade_route(trade_route, is_buy=False))
         else:
-            self.logger.log(logging.ERROR, f"An error occurred while selecting trade route")
-            QMessageBox.critical(self, "Error", f"An error occurred")
+            self.logger.log(logging.ERROR, "An error occurred while selecting trade route")
+            QMessageBox.critical(self, "Error", "An error occurred")
