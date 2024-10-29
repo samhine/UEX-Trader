@@ -39,8 +39,6 @@ jobs:
         fail-on-cache-miss: # optional, default is false
         # Check if a cache entry exists for the given input(s) (key, restore-keys) without downloading the cache
         lookup-only: # optional, default is false
-        # Run the post step to save the cache even if another step before fails
-        save-always: # optional, default is false
     - uses: actions/checkout@v4
     - name: Set up Python 3.11
       uses: actions/setup-python@v3
@@ -58,7 +56,7 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics --exclude=.venv,build,dist
     - name: Test with pytest
       run: |
-        pytest main.py
+        pytest --isolate -v
     - name: Create artifact with pyinstaller
       run: |
         ./build.sh
