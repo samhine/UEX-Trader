@@ -179,7 +179,16 @@ class BestTradeRouteTab(QWidget):
                 return
 
             departure_terminals = await self.fetch_terminals(departure_system_id, departure_planet_id)
-            destination_terminals = await self.fetch_terminals(destination_system_id, destination_planet_id)
+            destination_terminals = []
+            if not destination_system_id:
+                all_systems = await self.fetch_systems(departure_system_id, 2)
+                for system in all_systems:
+                    # Fetch terminals for the current system with None as the destination_planet_id
+                    terminals = await self.fetch_terminals(system["id"], None)
+                    # Concatenate the fetched terminals into destination_terminals
+                    destination_terminals.extend(terminals)
+            else:
+                destination_terminals = await self.fetch_terminals(destination_system_id, destination_planet_id)
 
             trade_routes = await self.calculate_trade_routes(departure_terminals,
                                                              destination_terminals, max_scu, max_investment)
@@ -215,6 +224,12 @@ class BestTradeRouteTab(QWidget):
         terminals = await self.api.fetch_data("/terminals", params=params)
         return [terminal for terminal in terminals.get("data", [])
                 if terminal.get("type") == "commodity" and terminal.get("is_available") == 1]
+
+    async def fetch_systems(self, origin_system_id, max_bounce):
+        params = {} # TODO - Return systems linked to origin_system_id with a maximum of "max_bounce" hops - API does not give this for now
+        systems = await self.api.fetch_data("/star_systems", params=params)
+        return [system for system in systems.get("data", [])
+                if system.get("is_available") == 1]
 
     async def calculate_trade_routes(self, departure_terminals, destination_terminals, max_scu, max_investment):
         trade_routes = []
