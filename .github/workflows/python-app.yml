@@ -64,6 +64,7 @@ jobs:
       run: |
         xvfb-run -a pytest -v test_minimal.py
     - name: Upload core dumps
+      if: always()
       uses: actions/upload-artifact@v3
       with:
         name: core-dumps
