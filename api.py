@@ -1,10 +1,10 @@
 # api.py
-import asyncio
 import logging
 import aiohttp
 from cache_manager import CacheManager
 
 logger = logging.getLogger(__name__)
+
 
 class API:
     def __init__(self, api_key, secret_key, is_production, debug, cache_ttl=300):
@@ -72,17 +72,17 @@ class API:
         url = f"{self.API_BASE_URL}/user_trades_add/"
         headers = {
             "Authorization": f"Bearer {self.api_key}",  # Send api_key as Bearer Token
-            "secret_key": self.secret_key 
+            "secret_key": self.secret_key
         }
 
         try:
             async with self.session.post(url, data=data, headers=headers) as response:
                 logger.info(f"API Request: POST {url} {data}")
                 response.raise_for_status()  # Raise an exception for bad status codes
-                return await response.json() 
+                return await response.json()
         except aiohttp.ClientResponseError as e:
             logger.error(f"API request failed with status {e.status}: {e.message} - {await e.text()}")
             raise  # Re-raise the exception to be handled by the calling function
         except aiohttp.ClientError as e:
             logger.error(f"API request failed: {e}")
-            raise 
+            raise

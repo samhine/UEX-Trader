@@ -1,4 +1,3 @@
-import sys
 import logging
 from PyQt5.QtWidgets import QApplication, QTabWidget, QVBoxLayout, QWidget, QStyleFactory
 from PyQt5.QtGui import QIcon, QPalette, QColor
@@ -6,9 +5,10 @@ from PyQt5.QtCore import Qt
 from config_tab import ConfigTab
 from trade_tab import TradeTab
 from trade_route_tab import TradeRouteTab
-from best_trade_route import BestTradeRouteTab 
+from best_trade_route import BestTradeRouteTab
 from logger_setup import setup_logger
 from config_manager import ConfigManager
+
 
 class UexcorpTrader(QWidget):
     def __init__(self, app, loop):
@@ -75,9 +75,3 @@ class UexcorpTrader(QWidget):
         # Save window size
         self.config_manager.set_window_size(self.width(), self.height())
         super().closeEvent(event)
-
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    trader = UexcorpTrader(app)
-    trader.show()
-    sys.exit(app.exec_())
