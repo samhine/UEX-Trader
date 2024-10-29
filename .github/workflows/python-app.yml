@@ -56,6 +56,13 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics --exclude=.venv,build,dist
     - name: Install xvfb
       run: sudo apt-get install -y xvfb
+    - name: Enable core dumps
+      run: |
+        ulimit -c unlimited
+        echo '/tmp/core.%e.%p' | sudo tee /proc/sys/kernel/core_pattern
+    - name: Run minimal test with xvfb (no isolation)
+      run: |
+        xvfb-run -a pytest -v test_minimal.py
     - name: Test with pytest & xvfb
       run: |
         xvfb-run -a pytest --isolate -v
