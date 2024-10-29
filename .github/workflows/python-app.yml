@@ -56,20 +56,10 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics --exclude=.venv,build,dist
     - name: Install xvfb
       run: sudo apt-get install -y xvfb libxcb-xinerama0
-    - name: Enable core dumps
+    - name: Run tests and capture core dumps
       run: |
-        ulimit -c unlimited
-        echo '/tmp/core.%e.%p' | sudo tee /proc/sys/kernel/core_pattern
-    - name: Verify core dump configuration
-      run: |
-        ulimit -c
-        cat /proc/sys/kernel/core_pattern
-    - name: Run minimal test with xvfb (no isolation)
-      run: |
-        xvfb-run -a pytest -v test_minimal.py
-    - name: List files in /tmp
-      run: |
-        ls -l /tmp
+        chmod +x run_tests.sh
+        ./run_tests.sh
     - name: Upload core dumps
       if: always()
       uses: actions/upload-artifact@v3
