@@ -8,7 +8,7 @@ UEX-Trader is a desktop application designed to facilitate trading within the UE
 
 Before you begin, ensure you have met the following requirements:
 
-- You have Python 3.7 or higher installed.
+- You have Python 3.11.10 or higher installed.
 - You have `pip` (Python package installer) installed.
 - You have access to the UEXcorp API.
 
