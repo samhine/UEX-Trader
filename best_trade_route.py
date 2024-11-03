@@ -259,7 +259,9 @@ class BestTradeRouteTab(QWidget):
                                   departure_commodity, arrival_commodities, max_scu, max_investment):
         routes = []
         for arrival_commodity in arrival_commodities.get("data", []):
-            if arrival_commodity.get("is_available") == 0 or arrival_commodity.get("id_terminal") == departure_terminal["id"] or arrival_commodity.get("id_terminal") != arrival_terminal["id"]:
+            if arrival_commodity.get("is_available") == 0 or \
+                arrival_commodity.get("id_terminal") == departure_terminal["id"] or \
+                    arrival_commodity.get("id_terminal") != arrival_terminal["id"]:
                 continue
 
             available_scu = max_scu if self.ignore_stocks_checkbox.isChecked() else departure_commodity.get("scu_buy", 0)
