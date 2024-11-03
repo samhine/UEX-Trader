@@ -28,6 +28,11 @@ class BestTradeRouteTab(QWidget):
         self.terminals = []
         self.initUI()
         asyncio.ensure_future(self.load_systems())
+        self.columns = [
+            "Departure", "Destination", "Commodity", "Buy SCU", "Buy Price",
+            "Sell Price", "Investment", "Unit Margin", "Total Margin",
+            "Departure SCU Available", "Arrival Demand SCU", "Profit Margin", "Actions"
+        ]
 
     def initUI(self):
         layout = QVBoxLayout()
@@ -162,13 +167,8 @@ class BestTradeRouteTab(QWidget):
     async def find_best_trade_routes(self):
         self.logger.log(logging.INFO, "Searching for Best Trade Routes")
         self.trade_route_table.setRowCount(0)  # Clear previous results
-        columns = [
-            "Departure", "Destination", "Commodity", "Buy SCU", "Buy Price",
-            "Sell Price", "Investment", "Unit Margin", "Total Margin",
-            "Departure SCU Available", "Arrival Demand SCU", "Profit Margin", "Actions"
-        ]
-        self.trade_route_table.setColumnCount(len(columns))
-        self.trade_route_table.setHorizontalHeaderLabels(columns)
+        self.trade_route_table.setColumnCount(len(self.columns))
+        self.trade_route_table.setHorizontalHeaderLabels(self.columns)
 
         try:
             max_scu, max_investment = self.get_input_values()
@@ -193,7 +193,7 @@ class BestTradeRouteTab(QWidget):
             trade_routes = await self.calculate_trade_routes(departure_terminals,
                                                              destination_terminals, max_scu, max_investment)
 
-            self.display_trade_routes(trade_routes, columns)
+            self.display_trade_routes(trade_routes, self.columns)
 
             self.logger.log(logging.INFO, "Finished calculating Best Trade Routes")
 
@@ -250,6 +250,7 @@ class BestTradeRouteTab(QWidget):
                         departure_terminal, arrival_terminal, departure_commodity,
                         arrival_commodities, max_scu, max_investment
                     ))
+                    self.display_trade_routes(trade_routes, self.columns)
                     # Allow UI to update during the search
                     QApplication.processEvents()
         return trade_routes
@@ -258,7 +259,9 @@ class BestTradeRouteTab(QWidget):
                                   departure_commodity, arrival_commodities, max_scu, max_investment):
         routes = []
         for arrival_commodity in arrival_commodities.get("data", []):
-            if arrival_commodity.get("is_available") == 0 or arrival_commodity.get("id_terminal") == departure_terminal["id"]:
+            if arrival_commodity.get("is_available") == 0 or \
+                arrival_commodity.get("id_terminal") == departure_terminal["id"] or \
+                    arrival_commodity.get("id_terminal") != arrival_terminal["id"]:
                 continue
 
             available_scu = max_scu if self.ignore_stocks_checkbox.isChecked() else departure_commodity.get("scu_buy", 0)
