@@ -63,6 +63,8 @@ class TradeRouteTab(QWidget):
         self.ignore_demand_checkbox = QCheckBox("Ignore Demand")
         layout.addWidget(self.ignore_stocks_checkbox)
         layout.addWidget(self.ignore_demand_checkbox)
+        self.filter_public_hangars_checkbox = QCheckBox("No Public Hangars")
+        layout.addWidget(self.filter_public_hangars_checkbox)
         find_route_button = QPushButton("Find Trade Route")
         find_route_button.clicked.connect(lambda: asyncio.ensure_future(self.find_trade_routes()))
         layout.addWidget(find_route_button)
@@ -193,6 +195,8 @@ class TradeRouteTab(QWidget):
             if self.filter_system_checkbox.isChecked() and arrival_commodity.get("id_star_system") != departure_system_id:
                 continue
             if self.filter_planet_checkbox.isChecked() and arrival_commodity.get("id_planet") != departure_planet_id:
+                continue
+            if self.filter_public_hangars_checkbox.isChecked() and (not arrival_commodity["city_name"] and not arrival_commodity["space_station_name"]):
                 continue
             trade_route = await self.calculate_trade_route_details(
                 arrival_commodity, departure_commodity, max_scu, max_investment, departure_system_id,
