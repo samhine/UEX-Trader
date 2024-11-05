@@ -238,7 +238,8 @@ class BestTradeRouteTab(QWidget):
     async def calculate_trade_routes(self, departure_terminals, destination_terminals, max_scu, max_investment):
         trade_routes = []
         for departure_terminal in departure_terminals:
-            if self.filter_public_hangars_checkbox.isChecked() and (not departure_terminal["city_name"] and not departure_terminal["space_station_name"]):
+            if self.filter_public_hangars_checkbox.isChecked() and (not departure_terminal["city_name"] and
+                                                                    not departure_terminal["space_station_name"]):
                 continue
             departure_commodities = await self.api.fetch_data("/commodities_prices",
                                                               params={'id_terminal': departure_terminal["id"]})
@@ -251,7 +252,8 @@ class BestTradeRouteTab(QWidget):
                                                                 params={'id_commodity':
                                                                         departure_commodity.get("id_commodity")})
                 for arrival_terminal in destination_terminals:
-                    if self.filter_public_hangars_checkbox.isChecked() and (not arrival_terminal["city_name"] and not arrival_terminal["space_station_name"]):
+                    if self.filter_public_hangars_checkbox.isChecked() and (not arrival_terminal["city_name"]
+                                                                            and not arrival_terminal["space_station_name"]):
                         continue
                     trade_routes.extend(await self.process_trade_route(
                         departure_terminal, arrival_terminal, departure_commodity,

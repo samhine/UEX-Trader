@@ -196,7 +196,8 @@ class TradeRouteTab(QWidget):
                 continue
             if self.filter_planet_checkbox.isChecked() and arrival_commodity.get("id_planet") != departure_planet_id:
                 continue
-            if self.filter_public_hangars_checkbox.isChecked() and (not arrival_commodity["city_name"] and not arrival_commodity["space_station_name"]):
+            if self.filter_public_hangars_checkbox.isChecked() and (not arrival_commodity["city_name"]
+                                                                    and not arrival_commodity["space_station_name"]):
                 continue
             trade_route = await self.calculate_trade_route_details(
                 arrival_commodity, departure_commodity, max_scu, max_investment, departure_system_id,
