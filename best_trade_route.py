@@ -75,6 +75,9 @@ class BestTradeRouteTab(QWidget):
         self.ignore_demand_checkbox = QCheckBox("Ignore Demand")
         layout.addWidget(self.ignore_stocks_checkbox)
         layout.addWidget(self.ignore_demand_checkbox)
+        self.filter_public_hangars_checkbox = QCheckBox("No Public Hangars")
+        layout.addWidget(self.filter_public_hangars_checkbox)
+
         find_route_button = QPushButton("Find Best Trade Routes")
         find_route_button.clicked.connect(lambda: asyncio.ensure_future(self.find_best_trade_routes()))
         layout.addWidget(find_route_button)
@@ -235,6 +238,9 @@ class BestTradeRouteTab(QWidget):
     async def calculate_trade_routes(self, departure_terminals, destination_terminals, max_scu, max_investment):
         trade_routes = []
         for departure_terminal in departure_terminals:
+            if self.filter_public_hangars_checkbox.isChecked() and (not departure_terminal["city_name"] and
+                                                                    not departure_terminal["space_station_name"]):
+                continue
             departure_commodities = await self.api.fetch_data("/commodities_prices",
                                                               params={'id_terminal': departure_terminal["id"]})
             self.logger.log(logging.INFO, f"Iterating through {len(departure_commodities.get('data', []))} \
@@ -246,6 +252,9 @@ class BestTradeRouteTab(QWidget):
                                                                 params={'id_commodity':
                                                                         departure_commodity.get("id_commodity")})
                 for arrival_terminal in destination_terminals:
+                    if self.filter_public_hangars_checkbox.isChecked() and (not arrival_terminal["city_name"]
+                                                                            and not arrival_terminal["space_station_name"]):
+                        continue
                     trade_routes.extend(await self.process_trade_route(
                         departure_terminal, arrival_terminal, departure_commodity,
                         arrival_commodities, max_scu, max_investment
