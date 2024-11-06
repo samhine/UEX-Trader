@@ -75,3 +75,5 @@ class UexcorpTrader(QWidget):
         # Save window size
         self.config_manager.set_window_size(self.width(), self.height())
         super().closeEvent(event)
+        self.loop.stop()
+        self.loop.close()
