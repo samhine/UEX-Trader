@@ -82,9 +82,9 @@ class BestTradeRouteTab(QWidget):
         find_route_button.clicked.connect(lambda: asyncio.ensure_future(self.find_best_trade_routes()))
         layout.addWidget(find_route_button)
 
-        find_route_button_v2 = QPushButton("Find Best Trade Routes (from User Trades)")
-        find_route_button_v2.clicked.connect(lambda: asyncio.ensure_future(self.find_best_trade_routes_v2()))
-        layout.addWidget(find_route_button_v2)
+        find_route_button_users = QPushButton("Find Best Trade Routes (from User Trades)")
+        find_route_button_users.clicked.connect(lambda: asyncio.ensure_future(self.find_best_trade_routes_users()))
+        layout.addWidget(find_route_button_users)
 
         self.trade_route_table = QTableWidget()
         layout.addWidget(self.trade_route_table)
@@ -172,7 +172,7 @@ class BestTradeRouteTab(QWidget):
             logging.error(f"Failed to load destination terminals: {e}")
             QMessageBox.critical(self, "Error", f"Failed to load destination terminals: {e}")
 
-    async def find_best_trade_routes_v2(self):
+    async def find_best_trade_routes_users(self):
         self.logger.log(logging.INFO, "Searching for Best Trade Routes")
         self.trade_route_table.setRowCount(0)  # Clear previous results
         self.trade_route_table.setColumnCount(len(self.columns))
@@ -210,7 +210,7 @@ class BestTradeRouteTab(QWidget):
                 for destination_planet in destination_planets:
                     commodities_routes.extend(await self.api.fetch_routes(departure_planet["id"], destination_planet["id"]))
 
-            await self.calculate_trade_routes_v2(commodities_routes, max_scu, max_investment)
+            await self.calculate_trade_routes_users(commodities_routes, max_scu, max_investment)
             self.logger.log(logging.INFO, "Finished calculating Best Trade Routes")
 
         except Exception as e:
@@ -267,8 +267,8 @@ class BestTradeRouteTab(QWidget):
             destination_planet_id = None
         return departure_system_id, departure_planet_id, destination_system_id, destination_planet_id
 
-    async def calculate_trade_routes_v2(self, commodities_routes, max_scu, max_investment):
-        trade_routes = await self.process_trade_route_v2(commodities_routes, max_scu, max_investment)
+    async def calculate_trade_routes_users(self, commodities_routes, max_scu, max_investment):
+        trade_routes = await self.process_trade_route_users(commodities_routes, max_scu, max_investment)
         self.display_trade_routes(trade_routes, self.columns)
         # Allow UI to update during the search
         QApplication.processEvents()
@@ -303,7 +303,7 @@ class BestTradeRouteTab(QWidget):
                     QApplication.processEvents()
         return trade_routes
 
-    async def process_trade_route_v2(self, commodities_routes, max_scu, max_investment):
+    async def process_trade_route_users(self, commodities_routes, max_scu, max_investment):
         sorted_routes = []
         for commodity_route in commodities_routes:
             if self.filter_public_hangars_checkbox.isChecked():
