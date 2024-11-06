@@ -295,7 +295,7 @@ class BestTradeRouteTab(QWidget):
                 destination_planets = await self.api.fetch_planets(destination_system_id, destination_planet_id)
 
             # [Recover departure/destination terminals and commodities]
-            departure_terminals = self.get_terminals(departure_planets, filter_public_hangars)
+            departure_terminals = await self.get_terminals(departure_planets, filter_public_hangars)
             self.logger.log(logging.INFO, f"{len(departure_terminals)} Departure Terminals found.")
 
             buy_commodities, sell_commodities = await self.get_trade_routes_commodities(departure_terminals,
