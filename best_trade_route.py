@@ -295,13 +295,7 @@ class BestTradeRouteTab(QWidget):
                 destination_planets = await self.api.fetch_planets(destination_system_id, destination_planet_id)
 
             # [Recover departure/destination terminals and commodities]
-            departure_terminals = []
-            # Get all departure terminals (filter by departure system/planet) from /terminals
-            for departure_planet in departure_planets:
-                departure_terminal = await self.api.fetch_terminals(departure_planet["id_star_system"], departure_planet["id"])
-                if not filter_public_hangars or (departure_terminal["city_name"]
-                                                 or departure_terminal["space_station_name"]):
-                    departure_terminals.extend(departure_terminal)
+            departure_terminals = self.get_terminals(departure_planets, filter_public_hangars)
             self.logger.log(logging.INFO, f"{len(departure_terminals)} Departure Terminals found.")
 
             buy_commodities, sell_commodities = await self.get_trade_routes_commodities(departure_terminals,
@@ -338,6 +332,18 @@ class BestTradeRouteTab(QWidget):
         QApplication.processEvents()
         return trade_routes
 
+    async def get_terminals(self, filtering_planets, filter_public_hangars=False):
+        terminals = []
+        # Get all terminals (filter by system/planet) from /terminals
+        for planet in filtering_planets:
+            returned_terminals = await self.api.fetch_terminals(planet["id_star_system"],
+                                                                planet["id"])
+            for terminal in returned_terminals:
+                if not filter_public_hangars or (terminal["city_name"]
+                                                 or terminal["space_station_name"]):
+                    terminals.append(terminal)
+        return terminals
+
     async def get_trade_routes_commodities(self, departure_terminals, destination_planets, filter_public_hangars=False):
         buy_commodities = []
         # Get all BUY commodities (for each departure terminals) from /commodities_prices
@@ -352,14 +358,8 @@ class BestTradeRouteTab(QWidget):
         grouped_buy_commodities_ids = set(map(lambda x: x["id_commodity"], buy_commodities))
         self.logger.log(logging.INFO, f"{len(grouped_buy_commodities_ids)} Unique Buy Commodities found.")
 
-        arrival_terminals = []
+        arrival_terminals = await self.get_terminals(destination_planets, filter_public_hangars)
         # Get all arrival terminals (filter by destination system/planet) from /terminals
-        for destination_planet in destination_planets:
-            arrival_terminal = await self.api.fetch_terminals(destination_planet["id_star_system"],
-                                                              destination_planet["id"])
-            if not filter_public_hangars or (arrival_terminal["city_name"]
-                                             or arrival_terminal["space_station_name"]):
-                arrival_terminals.extend(arrival_terminal)
         self.logger.log(logging.INFO, f"{len(arrival_terminals)} Arrival Terminals found.")
 
         sell_commodities = []
