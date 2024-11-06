@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 class API:
-    def __init__(self, api_key, secret_key, is_production, debug, cache_ttl=300):
+    def __init__(self, api_key, secret_key, is_production, debug, cache_ttl=1800):
         self.API_BASE_URL = "https://uexcorp.space/api/2.0"
         if is_production:
             self.API_BASE_URL = "https://uexcorp.space/api/2.0"  # Replace with actual production URL

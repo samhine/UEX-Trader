@@ -274,19 +274,19 @@ class BestTradeRouteTab(QWidget):
                 return
             
             # [Recover departure/destination planets]
-            departure_planets = [] # TODO - Use IDs instead of whole objects, this way we can remove one API call when departure_planet_id is given
+            departure_planets = []
             if not departure_planet_id:
                 departure_planets = await self.api.fetch_planets(departure_system_id)
                 self.logger.log(logging.INFO, f"{len(departure_planets)} Departure Planets found.")
             else:
                 departure_planets = await self.api.fetch_planets(departure_system_id, departure_planet_id)
-            destination_systems = [] # TODO - Use IDs instead of whole objects, this way we can remove one API call when destination_system_id is given
+            destination_systems = []
             if not destination_system_id:
                 destination_systems = await self.api.fetch_systems_from_origin_system(departure_system_id, max_bounce=2)
                 self.logger.log(logging.INFO, f"{len(destination_systems)} Destination Systems found.")
             else:
                 destination_systems = await self.api.fetch_system(destination_system_id)
-            destination_planets = [] # TODO - Use IDs instead of whole objects, this way we can remove one API call when destination_planet_id is given
+            destination_planets = []
             if not destination_planet_id:
                 for destination_system in destination_systems:
                     destination_planets.extend(await self.api.fetch_planets(destination_system["id"]))
@@ -298,8 +298,10 @@ class BestTradeRouteTab(QWidget):
             departure_terminals = []
             # Get all departure terminals (filter by departure system/planet) from /terminals
             for departure_planet in departure_planets:
-                # TODO - Filter out Public Hangars
-                departure_terminals.extend(await self.api.fetch_terminals(departure_planet["id_star_system"], departure_planet["id"]))
+                departure_terminal = await self.api.fetch_terminals(departure_planet["id_star_system"], departure_planet["id"])
+                if not filter_public_hangars or (departure_terminal["city_name"]
+                                                                        or departure_terminal["space_station_name"]):
+                    departure_terminals.extend(departure_terminal)
             self.logger.log(logging.INFO, f"{len(departure_terminals)} Departure Terminals found.")
 
             buy_commodities = []
@@ -317,8 +319,10 @@ class BestTradeRouteTab(QWidget):
             arrival_terminals = []
             # Get all arrival terminals (filter by destination system/planet) from /terminals
             for destination_planet in destination_planets:
-                # TODO - Filter out Public Hangars
-                arrival_terminals.extend(await self.api.fetch_terminals(destination_planet["id_star_system"], destination_planet["id"]))
+                arrival_terminal = await self.api.fetch_terminals(destination_planet["id_star_system"], destination_planet["id"])
+                if not filter_public_hangars or (arrival_terminal["city_name"]
+                                                                        or arrival_terminal["space_station_name"]):
+                    arrival_terminals.extend(arrival_terminal)
             self.logger.log(logging.INFO, f"{len(arrival_terminals)} Arrival Terminals found.")
 
             sell_commodities = []
@@ -474,7 +478,6 @@ class BestTradeRouteTab(QWidget):
         if max_investment < 0:
             # TODO - Send Exception instead
             return route
-        
 
         available_scu = max_scu if ignore_stocks else buy_commodity.get("scu_buy", 0)
         scu_sell_stock = sell_commodity.get("scu_sell_stock", 0)
