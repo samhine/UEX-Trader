@@ -66,7 +66,7 @@ class API:
         except aiohttp.ClientError as e:
             logger.error(f"Error fetching commodity ID: {e}")
             return None
-        
+
     async def fetch_commodities_by_id(self, id_commodity):
         params = {'id_commodity': id_commodity}
         commodities = await self.fetch_data("/commodities_prices", params=params)

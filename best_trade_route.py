@@ -304,53 +304,13 @@ class BestTradeRouteTab(QWidget):
                     departure_terminals.extend(departure_terminal)
             self.logger.log(logging.INFO, f"{len(departure_terminals)} Departure Terminals found.")
 
-            buy_commodities = []
-            # Get all BUY commodities (for each departure terminals) from /commodities_prices
-            for departure_terminal in departure_terminals:
-                buy_commodities.extend([commodity for commodity in
-                                        await self.api.fetch_commodities_from_terminal(departure_terminal["id"])
-                                        if commodity.get("price_buy") > 0])
-            self.logger.log(logging.INFO, f"{len(buy_commodities)} Buy Commodities found.")
-
-            grouped_buy_commodities_ids = []
-            # Establish a GROUPED list of BUY commodities (by commodity_id)
-            grouped_buy_commodities_ids = set(map(lambda x: x["id_commodity"], buy_commodities))
-            self.logger.log(logging.INFO, f"{len(grouped_buy_commodities_ids)} Unique Buy Commodities found.")
-
-            arrival_terminals = []
-            # Get all arrival terminals (filter by destination system/planet) from /terminals
-            for destination_planet in destination_planets:
-                arrival_terminal = await self.api.fetch_terminals(destination_planet["id_star_system"],
-                                                                  destination_planet["id"])
-                if not filter_public_hangars or (arrival_terminal["city_name"]
-                                                 or arrival_terminal["space_station_name"]):
-                    arrival_terminals.extend(arrival_terminal)
-            self.logger.log(logging.INFO, f"{len(arrival_terminals)} Arrival Terminals found.")
-
-            sell_commodities = []
-            # Get all SELL commodities (for each unique BUY commodity, available in arrival_terminals) from /commodities_prices
-            for grouped_buy_id in grouped_buy_commodities_ids:
-                sell_commodities.extend([commodity for commodity in await self.api.fetch_commodities_by_id(grouped_buy_id)
-                                        if commodity["price_sell"] > 0])
-            self.logger.log(logging.INFO, f"{len(sell_commodities)} Sell Commodities found.")
-
-            # [Calculate trade routes]
-            trade_routes = []
-            # For each BUY commodity / For each SELL commodity > Populate Trade routes (Display as it is populated)
-            for buy_commodity in buy_commodities:
-                for sell_commodity in sell_commodities:
-                    if buy_commodity["id_commodity"] != sell_commodity["id_commodity"]:
-                        continue
-                    if buy_commodity["id_terminal"] == sell_commodity["id_terminal"]:
-                        continue
-                    route = await self.process_single_trade_route(buy_commodity, sell_commodity, max_scu,
-                                                                  max_investment, ignore_stocks, ignore_demand)
-                    if route:
-                        trade_routes.append(route)
-                        self.display_trade_routes(trade_routes, self.columns)
-                        QApplication.processEvents()
-
-            self.logger.log(logging.INFO, "Finished calculating Best Trade Routes")
+            buy_commodities, sell_commodities = await self.get_trade_routes_commodities(departure_terminals,
+                                                                                        destination_planets,
+                                                                                        filter_public_hangars)
+            trade_routes = await self.calculdate_trade_routes_rework(buy_commodities, sell_commodities,
+                                                                     max_scu, max_investment,
+                                                                     ignore_stocks, ignore_demand)
+            self.logger.log(logging.INFO, f"Finished calculating Best Trade Routes : {len(trade_routes)} found")
         except Exception as e:
             self.logger.log(logging.ERROR, f"An error occurred while finding best trade routes: {e}")
             QMessageBox.critical(self, "Error", f"An error occurred: {e}")
@@ -376,6 +336,59 @@ class BestTradeRouteTab(QWidget):
         self.display_trade_routes(trade_routes, self.columns)
         # Allow UI to update during the search
         QApplication.processEvents()
+        return trade_routes
+
+    async def get_trade_routes_commodities(self, departure_terminals, destination_planets, filter_public_hangars=False):
+        buy_commodities = []
+        # Get all BUY commodities (for each departure terminals) from /commodities_prices
+        for departure_terminal in departure_terminals:
+            buy_commodities.extend([commodity for commodity in
+                                    await self.api.fetch_commodities_from_terminal(departure_terminal["id"])
+                                    if commodity.get("price_buy") > 0])
+        self.logger.log(logging.INFO, f"{len(buy_commodities)} Buy Commodities found.")
+
+        grouped_buy_commodities_ids = []
+        # Establish a GROUPED list of BUY commodities (by commodity_id)
+        grouped_buy_commodities_ids = set(map(lambda x: x["id_commodity"], buy_commodities))
+        self.logger.log(logging.INFO, f"{len(grouped_buy_commodities_ids)} Unique Buy Commodities found.")
+
+        arrival_terminals = []
+        # Get all arrival terminals (filter by destination system/planet) from /terminals
+        for destination_planet in destination_planets:
+            arrival_terminal = await self.api.fetch_terminals(destination_planet["id_star_system"],
+                                                              destination_planet["id"])
+            if not filter_public_hangars or (arrival_terminal["city_name"]
+                                             or arrival_terminal["space_station_name"]):
+                arrival_terminals.extend(arrival_terminal)
+        self.logger.log(logging.INFO, f"{len(arrival_terminals)} Arrival Terminals found.")
+
+        sell_commodities = []
+        # Get all SELL commodities (for each unique BUY commodity, available in arrival_terminals) from /commodities_prices
+        for grouped_buy_id in grouped_buy_commodities_ids:
+            sell_commodities.extend([commodity for commodity in await self.api.fetch_commodities_by_id(grouped_buy_id)
+                                    if commodity["price_sell"] > 0])
+        self.logger.log(logging.INFO, f"{len(sell_commodities)} Sell Commodities found.")
+
+        return buy_commodities, sell_commodities
+
+    async def calculdate_trade_routes_rework(self, buy_commodities, sell_commodities,
+                                             max_scu, max_investment, ignore_stocks,
+                                             ignore_demand):
+        # [Calculate trade routes]
+        trade_routes = []
+        # For each BUY commodity / For each SELL commodity > Populate Trade routes (Display as it is populated)
+        for buy_commodity in buy_commodities:
+            for sell_commodity in sell_commodities:
+                if buy_commodity["id_commodity"] != sell_commodity["id_commodity"]:
+                    continue
+                if buy_commodity["id_terminal"] == sell_commodity["id_terminal"]:
+                    continue
+                route = await self.process_single_trade_route(buy_commodity, sell_commodity, max_scu,
+                                                              max_investment, ignore_stocks, ignore_demand)
+                if route:
+                    trade_routes.append(route)
+                    self.display_trade_routes(trade_routes, self.columns)
+                    QApplication.processEvents()
         return trade_routes
 
     async def calculate_trade_routes(self, departure_terminals, destination_terminals, max_scu, max_investment):
