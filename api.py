@@ -66,6 +66,18 @@ class API:
         except aiohttp.ClientError as e:
             logger.error(f"Error fetching commodity ID: {e}")
             return None
+        
+    async def fetch_commodities_by_id(self, id_commodity):
+        params = {'id_commodity': id_commodity}
+        commodities = await self.fetch_data("/commodities_prices", params=params)
+        return commodities.get("data", [])
+
+    async def fetch_commodities_from_terminal(self, id_terminal, id_commodity=None):
+        params = {'id_terminal': id_terminal}
+        if id_commodity:
+            params['id_commodity'] = id_commodity
+        commodities = await self.fetch_data("/commodities_prices", params=params)
+        return commodities.get("data", [])
 
     async def fetch_planets(self, system_id, planet_id=None):
         params = {'id_star_system': system_id}

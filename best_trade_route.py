@@ -82,6 +82,10 @@ class BestTradeRouteTab(QWidget):
         find_route_button.clicked.connect(lambda: asyncio.ensure_future(self.find_best_trade_routes()))
         layout.addWidget(find_route_button)
 
+        find_route_button_rework = QPushButton("Find Best Trade Routes (New)")
+        find_route_button_rework.clicked.connect(lambda: asyncio.ensure_future(self.find_best_trade_routes_rework()))
+        layout.addWidget(find_route_button_rework)
+
         find_route_button_users = QPushButton("Find Best Trade Routes (from User Trades)")
         find_route_button_users.clicked.connect(lambda: asyncio.ensure_future(self.find_best_trade_routes_users()))
         layout.addWidget(find_route_button_users)
@@ -251,6 +255,99 @@ class BestTradeRouteTab(QWidget):
             self.logger.log(logging.ERROR, f"An error occurred while finding best trade routes: {e}")
             QMessageBox.critical(self, "Error", f"An error occurred: {e}")
 
+    async def find_best_trade_routes_rework(self):
+        self.logger.log(logging.INFO, "Searching for Best Trade Routes")
+        self.trade_route_table.setRowCount(0)  # Clear previous results
+        self.trade_route_table.setColumnCount(len(self.columns))
+        self.trade_route_table.setHorizontalHeaderLabels(self.columns)
+
+        try:
+            # [Recover entry parameters]
+            max_scu, max_investment = self.get_input_values()
+            departure_system_id, departure_planet_id, destination_system_id, destination_planet_id = self.get_selected_ids()
+            ignore_stocks = self.ignore_stocks_checkbox.isChecked()
+            ignore_demand = self.ignore_demand_checkbox.isChecked()
+            filter_public_hangars = self.filter_public_hangars_checkbox.isChecked()
+
+            if not departure_system_id:
+                QMessageBox.warning(self, "Input Error", "Please Select a Departure System.")
+                return
+            
+            # [Recover departure/destination planets]
+            departure_planets = [] # TODO - Use IDs instead of whole objects, this way we can remove one API call when departure_planet_id is given
+            if not departure_planet_id:
+                departure_planets = await self.api.fetch_planets(departure_system_id)
+                self.logger.log(logging.INFO, f"{len(departure_planets)} Departure Planets found.")
+            else:
+                departure_planets = await self.api.fetch_planets(departure_system_id, departure_planet_id)
+            destination_systems = [] # TODO - Use IDs instead of whole objects, this way we can remove one API call when destination_system_id is given
+            if not destination_system_id:
+                destination_systems = await self.api.fetch_systems_from_origin_system(departure_system_id, max_bounce=2)
+                self.logger.log(logging.INFO, f"{len(destination_systems)} Destination Systems found.")
+            else:
+                destination_systems = await self.api.fetch_system(destination_system_id)
+            destination_planets = [] # TODO - Use IDs instead of whole objects, this way we can remove one API call when destination_planet_id is given
+            if not destination_planet_id:
+                for destination_system in destination_systems:
+                    destination_planets.extend(await self.api.fetch_planets(destination_system["id"]))
+                self.logger.log(logging.INFO, f"{len(destination_planets)} Destination Planets found.")
+            else:
+                destination_planets = await self.api.fetch_planets(destination_system_id, destination_planet_id)
+
+            # [Recover departure/destination terminals and commodities]
+            departure_terminals = []
+            # Get all departure terminals (filter by departure system/planet) from /terminals
+            for departure_planet in departure_planets:
+                # TODO - Filter out Public Hangars
+                departure_terminals.extend(await self.api.fetch_terminals(departure_planet["id_star_system"], departure_planet["id"]))
+            self.logger.log(logging.INFO, f"{len(departure_terminals)} Departure Terminals found.")
+
+            buy_commodities = []
+            # Get all BUY commodities (for each departure terminals) from /commodities_prices
+            for departure_terminal in departure_terminals:
+                buy_commodities.extend([commodity for commodity in await self.api.fetch_commodities_from_terminal(departure_terminal["id"])
+                                        if commodity.get("price_buy") > 0])
+            self.logger.log(logging.INFO, f"{len(buy_commodities)} Buy Commodities found.")
+
+            grouped_buy_commodities_ids = []
+            # Establish a GROUPED list of BUY commodities (by commodity_id)
+            grouped_buy_commodities_ids = set(map(lambda x:x["id_commodity"], buy_commodities))
+            self.logger.log(logging.INFO, f"{len(grouped_buy_commodities_ids)} Unique Buy Commodities found.")
+
+            arrival_terminals = []
+            # Get all arrival terminals (filter by destination system/planet) from /terminals
+            for destination_planet in destination_planets:
+                # TODO - Filter out Public Hangars
+                arrival_terminals.extend(await self.api.fetch_terminals(destination_planet["id_star_system"], destination_planet["id"]))
+            self.logger.log(logging.INFO, f"{len(arrival_terminals)} Arrival Terminals found.")
+
+            sell_commodities = []
+            # Get all SELL commodities (for each unique BUY commodity, available in arrival_terminals) from /commodities_prices
+            for grouped_buy_id in grouped_buy_commodities_ids:
+                sell_commodities.extend([commodity for commodity in await self.api.fetch_commodities_by_id(grouped_buy_id)
+                                        if commodity["price_sell"] > 0])
+            self.logger.log(logging.INFO, f"{len(sell_commodities)} Sell Commodities found.")
+
+            # [Calculate trade routes]
+            trade_routes = []
+            # For each BUY commodity / For each SELL commodity > Populate Trade routes (Display as it is populated)
+            for buy_commodity in buy_commodities:
+                for sell_commodity in sell_commodities:
+                    if buy_commodity["id_commodity"] != sell_commodity["id_commodity"]:
+                        continue
+                    if buy_commodity["id_terminal"] == sell_commodity["id_terminal"]:
+                        continue
+                    route = await self.process_single_trade_route(buy_commodity, sell_commodity, max_scu, max_investment, ignore_stocks, ignore_demand)
+                    if route:
+                        trade_routes.append(route)
+                        self.display_trade_routes(trade_routes, self.columns)
+                        QApplication.processEvents()
+
+            self.logger.log(logging.INFO, "Finished calculating Best Trade Routes")
+        except Exception as e:
+            self.logger.log(logging.ERROR, f"An error occurred while finding best trade routes: {e}")
+            QMessageBox.critical(self, "Error", f"An error occurred: {e}")
+
     def get_input_values(self):
         max_scu = int(self.max_scu_input.text()) if self.max_scu_input.text() else sys.maxsize
         max_investment = float(self.max_investment_input.text()) if self.max_investment_input.text() else sys.maxsize
@@ -362,6 +459,66 @@ class BestTradeRouteTab(QWidget):
                 "max_buyable_scu": max_buyable_scu
             })
         return sorted_routes
+
+    async def process_single_trade_route(self, buy_commodity, sell_commodity, max_scu=sys.maxsize, max_investment=sys.maxsize, ignore_stocks=False, ignore_demand=False):
+        route = None
+        if buy_commodity["id_commodity"] != sell_commodity["id_commodity"]:
+            return route
+        if buy_commodity["id_terminal"] == sell_commodity["id_terminal"]:
+            return route
+        if buy_commodity["id"] == sell_commodity["id"]:
+            return route
+        if max_scu < 0:
+            # TODO - Send Exception instead
+            return route
+        if max_investment < 0:
+            # TODO - Send Exception instead
+            return route
+        
+
+        available_scu = max_scu if ignore_stocks else buy_commodity.get("scu_buy", 0)
+        scu_sell_stock = sell_commodity.get("scu_sell_stock", 0)
+        scu_sell_users = sell_commodity.get("scu_sell_users", 0)
+        demand_scu = max_scu if ignore_demand else scu_sell_stock - scu_sell_users
+
+        price_buy = buy_commodity.get("price_buy")
+        price_sell = sell_commodity.get("price_sell")
+
+        if not price_buy or not price_sell or available_scu <= 0 or not demand_scu:
+            return route
+
+        max_buyable_scu = min(max_scu, available_scu, int(max_investment // price_buy), demand_scu)
+        if max_buyable_scu <= 0:
+            return route
+
+        investment = price_buy * max_buyable_scu
+        unit_margin = (price_sell - price_buy)
+        total_margin = unit_margin * max_buyable_scu
+        profit_margin = unit_margin / price_buy
+
+        route = {
+                "departure": buy_commodity["terminal_name"],
+                "destination": sell_commodity["terminal_name"],
+                "commodity": buy_commodity.get("commodity_name"),
+                "buy_scu": f"{max_buyable_scu} SCU",
+                "buy_price": f"{price_buy} UEC",
+                "sell_price": f"{price_sell} UEC",
+                "investment": f"{investment} UEC",
+                "unit_margin": f"{unit_margin} UEC",
+                "total_margin": f"{total_margin} UEC",
+                "departure_scu_available": f"{buy_commodity.get('scu_buy', 0)} SCU",
+                "arrival_demand_scu": f"{scu_sell_stock - scu_sell_users} SCU",
+                "profit_margin": f"{round(profit_margin * 100)}%",
+                "departure_terminal_id": buy_commodity["id_terminal"],
+                "arrival_terminal_id": sell_commodity.get("id_terminal"),
+                "departure_system_id": buy_commodity.get("id_star_system"),
+                "arrival_system_id": sell_commodity.get("id_star_system"),
+                "departure_planet_id": buy_commodity.get("id_planet"),
+                "arrival_planet_id": sell_commodity.get("id_planet"),
+                "commodity_id": buy_commodity.get("id_commodity"),
+                "max_buyable_scu": max_buyable_scu
+            }
+        return route
 
     async def process_trade_route(self, departure_terminal, arrival_terminal,
                                   departure_commodity, arrival_commodities, max_scu, max_investment):
