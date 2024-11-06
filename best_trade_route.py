@@ -188,27 +188,27 @@ class BestTradeRouteTab(QWidget):
 
             departure_planets = []
             if not departure_planet_id:
-                departure_planets = await self.fetch_planets(departure_system_id)
+                departure_planets = await self.api.fetch_planets(departure_system_id)
             else:
-                departure_planets = await self.fetch_planets(departure_system_id, departure_planet_id)
+                departure_planets = await self.api.fetch_planets(departure_system_id, departure_planet_id)
 
             destination_systems = []
             if not destination_system_id:
-                destination_systems = await self.fetch_systems_from_origin_system(departure_system_id, 2)
+                destination_systems = await self.api.fetch_systems_from_origin_system(departure_system_id, 2)
             else:
-                destination_systems = await self.fetch_system(destination_system_id)
+                destination_systems = await self.api.fetch_system(destination_system_id)
 
             destination_planets = []
             for destination_system in destination_systems:
                 if not destination_planet_id:
-                    destination_planets.extend(await self.fetch_planets(destination_system["id"]))
+                    destination_planets.extend(await self.api.fetch_planets(destination_system["id"]))
                 else:
-                    destination_planets.extend(await self.fetch_planets(destination_system["id"], destination_planet_id))
+                    destination_planets.extend(await self.api.fetch_planets(destination_system["id"], destination_planet_id))
 
             commodities_routes = []
             for departure_planet in departure_planets:
                 for destination_planet in destination_planets:
-                    commodities_routes.extend(await self.fetch_routes(departure_planet["id"], destination_planet["id"]))
+                    commodities_routes.extend(await self.api.fetch_routes(departure_planet["id"], destination_planet["id"]))
 
             await self.calculate_trade_routes_v2(commodities_routes, max_scu, max_investment)
             self.logger.log(logging.INFO, "Finished calculating Best Trade Routes")
@@ -231,17 +231,17 @@ class BestTradeRouteTab(QWidget):
                 QMessageBox.warning(self, "Input Error", "Please Select a Departure System.")
                 return
 
-            departure_terminals = await self.fetch_terminals(departure_system_id, departure_planet_id)
+            departure_terminals = await self.api.fetch_terminals(departure_system_id, departure_planet_id)
             destination_terminals = []
             if not destination_system_id:
-                all_systems = await self.fetch_systems_from_origin_system(departure_system_id, 2)
+                all_systems = await self.api.fetch_systems_from_origin_system(departure_system_id, 2)
                 for system in all_systems:
                     # Fetch terminals for the current system with None as the destination_planet_id
-                    terminals = await self.fetch_terminals(system["id"], None)
+                    terminals = await self.api.fetch_terminals(system["id"], None)
                     # Concatenate the fetched terminals into destination_terminals
                     destination_terminals.extend(terminals)
             else:
-                destination_terminals = await self.fetch_terminals(destination_system_id, destination_planet_id)
+                destination_terminals = await self.api.fetch_terminals(destination_system_id, destination_planet_id)
 
             await self.calculate_trade_routes(departure_terminals, destination_terminals, max_scu, max_investment)
 
@@ -266,42 +266,6 @@ class BestTradeRouteTab(QWidget):
         if self.destination_planet_combo.currentText() == "All Planets":
             destination_planet_id = None
         return departure_system_id, departure_planet_id, destination_system_id, destination_planet_id
-
-    async def fetch_planets(self, system_id, planet_id=None):
-        params = {'id_star_system': system_id}
-        planets = await self.api.fetch_data("/planets", params=params)
-        return [planet for planet in planets.get("data", [])
-                if planet.get("is_available") == 1 and (not planet_id or planet.get("id") == planet_id)]
-
-    async def fetch_terminals(self, system_id, planet_id=None, terminal_id=None):
-        params = {'id_star_system': system_id}
-        if planet_id:
-            params['id_planet'] = planet_id
-        terminals = await self.api.fetch_data("/terminals", params=params)
-        return [terminal for terminal in terminals.get("data", [])
-                if terminal.get("type") == "commodity" and terminal.get("is_available") == 1
-                and (not terminal_id or terminal.get("id") == terminal_id)]
-
-    async def fetch_systems_from_origin_system(self, origin_system_id, max_bounce):
-        params = {}
-        # TODO - Return systems linked to origin_system_id with a maximum of "max_bounce" hops - API does not give this for now
-        systems = await self.api.fetch_data("/star_systems", params=params)
-        return [system for system in systems.get("data", [])
-                if system.get("is_available") == 1]
-
-    async def fetch_system(self, system_id):
-        params = {'id_star_system': system_id}
-        systems = await self.api.fetch_data("/star_systems", params=params)
-        return [system for system in systems.get("data", [])
-                if system.get("is_available") == 1]
-
-    async def fetch_routes(self, id_planet_origin, id_planet_destination):
-        params = {'id_planet_origin': id_planet_origin}
-        if id_planet_destination:
-            params['id_planet_destination'] = id_planet_destination
-        routes = await self.api.fetch_data("/commodities_routes", params=params)
-        return [route for route in routes.get("data", [])
-                if route.get("price_margin") > 0]
 
     async def calculate_trade_routes_v2(self, commodities_routes, max_scu, max_investment):
         trade_routes = await self.process_trade_route_v2(commodities_routes, max_scu, max_investment)
@@ -346,12 +310,12 @@ class BestTradeRouteTab(QWidget):
                 if not commodity_route.get("is_space_station_origin", 0)\
                    and not commodity_route.get("is_space_station_destination", 0):
                     continue
-                terminal_origin = await self.fetch_terminals(commodity_route.get("id_star_system_origin"),
+                terminal_origin = await self.api.fetch_terminals(commodity_route.get("id_star_system_origin"),
                                                              commodity_route.get("id_planet_origin"),
                                                              commodity_route.get("id_terminal_origin"))
                 if (not terminal_origin[0].get("city_name")):
                     continue
-                terminal_destination = await self.fetch_terminals(commodity_route.get("id_star_system_destination"),
+                terminal_destination = await self.api.fetch_terminals(commodity_route.get("id_star_system_destination"),
                                                                   commodity_route.get("id_planet_destination"),
                                                                   commodity_route.get("id_terminal_destination"))
                 if (not terminal_destination[0].get("city_name")):
