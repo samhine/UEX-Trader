@@ -7,7 +7,7 @@ on:
   push:
     branches: [ "master", "dev", "nightly", "unstable" ]
   pull_request:
-    branches: [ "dev", "nightly" ]
+    branches: [ "dev", "nightly", "d*.*.*" ]
 
 permissions:
   contents: read
