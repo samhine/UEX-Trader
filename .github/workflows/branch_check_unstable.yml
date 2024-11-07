@@ -1,0 +1,16 @@
+name: Branch Check for Unstable
+on:
+  pull_request:
+    branches:
+      - unstable
+
+jobs:
+  check_branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check source branch
+        run: |
+          if [[ ${{ github.head_ref }} != "nightly" ]]; then
+            echo "Error: Pull request must come from 'nightly' branch"
+            exit 1
+          fi

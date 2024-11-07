@@ -1,0 +1,16 @@
+name: Branch Check for Master
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  check_branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check source branch
+        run: |
+          if [[ ${{ github.head_ref }} != "unstable" ]]; then
+            echo "Error: Pull request must come from 'unstable' branch"
+            exit 1
+          fi

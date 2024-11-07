@@ -1,0 +1,16 @@
+name: Branch Check for Nightly
+on:
+  pull_request:
+    branches:
+      - nightly
+
+jobs:
+  check_branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check source branch
+        run: |
+          if [[ ${{ github.head_ref }} != "dev" ]]; then
+            echo "Error: Pull request must come from 'dev' branch"
+            exit 1
+          fi

@@ -1,0 +1,26 @@
+name: Branch Protection Check
+
+on:
+  pull_request:
+    branches:
+      - 'd*.*.*'  # This will match any branch with the pattern d*.*.*, like d1.0.0, d2.3.4, etc.
+
+jobs:
+  check_branches:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check target and source branches
+        run: |
+          # Check if the target branch matches d*.*.* pattern
+          if [[ ! ${{ github.base_ref }} =~ ^d[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Error: Target branch must match the pattern d*.*.* (e.g., d1.2.3)"
+            exit 1
+          fi
+
+          # Check if the source branch starts with feat/
+          if [[ ! ${{ github.head_ref }} =~ ^feat/ and ! ${{ github.head_ref }} =~ ^fix/ ]]; then
+            echo "Error: Source branch must start with 'feat/' or 'fix/'"
+            exit 1
+          fi
+
+          echo "Branch check passed. Target: ${{ github.base_ref }}, Source: ${{ github.head_ref }}"
