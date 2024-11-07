@@ -18,8 +18,8 @@ jobs:
             exit 1
           fi
 
-          # Check if the source branch starts with feat/
-          if [[ ! ${{ github.head_ref }} =~ ^feat/ and ! $github.head_ref =~ ^fix/ ]]; then
+          # Check if the source branch starts with feat/ or fix/
+          if [[ ! ${{ github.head_ref }} =~ ^feat/.*$ and ! ${{ github.head_ref }} =~ ^fix/.*$ ]]; then
             echo "Error: Source branch must start with 'feat/' or 'fix/'"
             echo "Source : ${{ github.head_ref }}"
             exit 1
