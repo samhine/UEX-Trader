@@ -10,7 +10,9 @@ jobs:
     steps:
       - name: Check source branch
         run: |
-          if [[ ! ${{ github.head_ref }} =~ ^d[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          if [[ ! "${{ github.head_ref }}" =~ ^d[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Error: Pull request must come from 'dX.X.X' branch (e.g., d0.4.2)"
+            echo "Source : ${{ github.head_ref }}"
             exit 1
           fi
+          echo "Branch check passed. Target: ${{ github.base_ref }}, Source: ${{ github.head_ref }}"

@@ -10,7 +10,9 @@ jobs:
     steps:
       - name: Check source branch
         run: |
-          if [[ ${{ github.head_ref }} != "dev" ]]; then
+          if [[ "${{ github.head_ref }}" != "dev" ]]; then
             echo "Error: Pull request must come from 'dev' branch"
+            echo "Source : ${{ github.head_ref }}"
             exit 1
           fi
+          echo "Branch check passed. Target: ${{ github.base_ref }}, Source: ${{ github.head_ref }}"

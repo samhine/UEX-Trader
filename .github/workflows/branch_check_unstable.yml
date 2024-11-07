@@ -10,7 +10,9 @@ jobs:
     steps:
       - name: Check source branch
         run: |
-          if [[ ${{ github.head_ref }} != "nightly" ]]; then
+          if [[ "${{ github.head_ref }}" != "nightly" ]]; then
             echo "Error: Pull request must come from 'nightly' branch"
+            echo "Source : ${{ github.head_ref }}"
             exit 1
           fi
+          echo "Branch check passed. Target: ${{ github.base_ref }}, Source: ${{ github.head_ref }}"
