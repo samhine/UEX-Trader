@@ -30,10 +30,14 @@ class UexcorpTrader(QWidget):
         self.setWindowIcon(QIcon("resources/UEXTrader_icon_resized.png"))
 
         tabs = QTabWidget()
-        tabs.addTab(ConfigTab(self), "Configuration")
-        tabs.addTab(TradeTab(self), "Trade Commodity")
-        tabs.addTab(TradeRouteTab(self), "Find Trade Route")
-        tabs.addTab(BestTradeRouteTab(self), "Best Trade Routes")
+        self.configTab = ConfigTab(self)
+        self.tradeTab = TradeTab(self)
+        self.tradeRouteTab = TradeRouteTab(self)
+        self.bestTradeRouteTab = BestTradeRouteTab(self)
+        tabs.addTab(self.configTab, "Configuration")
+        tabs.addTab(self.tradeTab, "Trade Commodity")
+        tabs.addTab(self.tradeRouteTab, "Find Trade Route")
+        tabs.addTab(self.bestTradeRouteTab, "Best Trade Routes")
 
         main_layout = QVBoxLayout()
         main_layout.addWidget(tabs)
@@ -77,3 +81,9 @@ class UexcorpTrader(QWidget):
         super().closeEvent(event)
         self.loop.stop()
         self.loop.close()
+
+    def set_gui_enabled(self, enabled):
+        self.configTab.set_gui_enabled(enabled)
+        self.tradeTab.set_gui_enabled(enabled)
+        self.tradeRouteTab.set_gui_enabled(enabled)
+        self.bestTradeRouteTab.set_gui_enabled(enabled)
