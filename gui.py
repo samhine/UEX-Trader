@@ -1,4 +1,3 @@
-import sys
 import logging
 from PyQt5.QtWidgets import QApplication, QTabWidget, QVBoxLayout, QWidget, QStyleFactory
 from PyQt5.QtGui import QIcon, QPalette, QColor
@@ -6,9 +5,10 @@ from PyQt5.QtCore import Qt
 from config_tab import ConfigTab
 from trade_tab import TradeTab
 from trade_route_tab import TradeRouteTab
-from best_trade_route import BestTradeRouteTab 
+from best_trade_route import BestTradeRouteTab
 from logger_setup import setup_logger
 from config_manager import ConfigManager
+
 
 class UexcorpTrader(QWidget):
     def __init__(self, app, loop):
@@ -30,10 +30,14 @@ class UexcorpTrader(QWidget):
         self.setWindowIcon(QIcon("resources/UEXTrader_icon_resized.png"))
 
         tabs = QTabWidget()
-        tabs.addTab(ConfigTab(self), "Configuration")
-        tabs.addTab(TradeTab(self), "Trade Commodity")
-        tabs.addTab(TradeRouteTab(self), "Find Trade Route")
-        tabs.addTab(BestTradeRouteTab(self), "Best Trade Routes")
+        self.configTab = ConfigTab(self)
+        self.tradeTab = TradeTab(self)
+        self.tradeRouteTab = TradeRouteTab(self)
+        self.bestTradeRouteTab = BestTradeRouteTab(self)
+        tabs.addTab(self.configTab, "Configuration")
+        tabs.addTab(self.tradeTab, "Trade Commodity")
+        tabs.addTab(self.tradeRouteTab, "Find Trade Route")
+        tabs.addTab(self.bestTradeRouteTab, "Best Trade Routes")
 
         main_layout = QVBoxLayout()
         main_layout.addWidget(tabs)
@@ -75,9 +79,11 @@ class UexcorpTrader(QWidget):
         # Save window size
         self.config_manager.set_window_size(self.width(), self.height())
         super().closeEvent(event)
+        self.loop.stop()
+        self.loop.close()
 
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    trader = UexcorpTrader(app)
-    trader.show()
-    sys.exit(app.exec_())
+    def set_gui_enabled(self, enabled):
+        self.configTab.set_gui_enabled(enabled)
+        self.tradeTab.set_gui_enabled(enabled)
+        self.tradeRouteTab.set_gui_enabled(enabled)
+        self.bestTradeRouteTab.set_gui_enabled(enabled)

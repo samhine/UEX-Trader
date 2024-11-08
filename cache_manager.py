@@ -1,6 +1,7 @@
 # cache_manager.py
 import time
 
+
 class CacheManager:
     def __init__(self, ttl=300):
         self.ttl = ttl  # Time-to-live for cache in seconds

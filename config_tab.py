@@ -1,6 +1,8 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QComboBox, QMessageBox
 from config_manager import ConfigManager
 import logging
+from logger_setup import setup_logger
+
 
 class ConfigTab(QWidget):
     def __init__(self, main_widget):
@@ -41,6 +43,7 @@ class ConfigTab(QWidget):
         self.debug_input = QComboBox()
         self.debug_input.addItems(["False", "True"])
         self.debug_input.setCurrentText(str(self.config_manager.get_debug()))
+        self.debug_input.currentIndexChanged.connect(self.update_debug_mode)
 
         appearance_label = QLabel("Appearance Mode:")
         self.appearance_input = QComboBox()
@@ -84,6 +87,11 @@ class ConfigTab(QWidget):
         self.config_manager.set_appearance_mode(new_appearance)
         self.main_widget.apply_appearance_mode(new_appearance)
 
+    def update_debug_mode(self):
+        debug = self.debug_input.currentText() == "True"
+        logging_level = logging.DEBUG if debug else logging.INFO
+        setup_logger(logging_level)
+
     def save_configuration(self):
         self.config_manager.set_api_key(self.api_key_input.text())
         self.config_manager.set_secret_key(self.secret_key_input.text())
@@ -99,3 +107,11 @@ class ConfigTab(QWidget):
         logger.debug("Logging level set to: %s", logging_level)
 
         QMessageBox.information(self, "Configuration", "Configuration saved successfully!")
+
+    def set_gui_enabled(self, enabled):
+        for input in self.findChildren(QLineEdit):
+            input.setEnabled(enabled)
+        for combo in self.findChildren(QComboBox):
+            combo.setEnabled(enabled)
+        for button in self.findChildren(QPushButton):
+            button.setEnabled(enabled)
