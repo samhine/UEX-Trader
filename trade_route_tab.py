@@ -1,7 +1,12 @@
 import logging
 import sys
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox
-from PyQt5.QtWidgets import QPushButton, QTableWidget, QMessageBox, QTableWidgetItem, QHBoxLayout, QCheckBox
+from PyQt5.QtWidgets import (
+    QPushButton, QTableWidget,
+    QMessageBox, QTableWidgetItem,
+    QHBoxLayout, QCheckBox,
+    QProgressBar
+)
 from PyQt5.QtCore import Qt
 import asyncio
 from api import API
@@ -68,6 +73,14 @@ class TradeRouteTab(QWidget):
         find_route_button = QPushButton("Find Trade Route")
         find_route_button.clicked.connect(lambda: asyncio.ensure_future(self.find_trade_routes()))
         layout.addWidget(find_route_button)
+
+        self.main_progress_bar = QProgressBar()
+        self.main_progress_bar.setVisible(False)
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)
+        layout.addWidget(self.main_progress_bar)
+        layout.addWidget(self.progress_bar)
+
         self.trade_route_table = QTableWidget()
         layout.addWidget(self.trade_route_table)
         self.setLayout(layout)
@@ -134,18 +147,31 @@ class TradeRouteTab(QWidget):
         ]
         self.trade_route_table.setColumnCount(len(columns))
         self.trade_route_table.setHorizontalHeaderLabels(columns)
+
+        self.main_widget.set_gui_enabled(False)
+        self.main_progress_bar.setVisible(True)
+        self.progress_bar.setVisible(True)
+        self.progress_bar.setValue(0)
+        self.main_progress_bar.setValue(0)
+
         try:
             max_scu, max_investment, departure_system_id, departure_planet_id, departure_terminal_id = self.validate_inputs()
             if not all([departure_system_id, departure_planet_id, departure_terminal_id]):
                 QMessageBox.warning(self, "Input Error", "Please Select Departure System, Planet, and Terminal.")
                 return
+
             trade_routes = await self.fetch_and_process_departure_commodities(
                 departure_terminal_id, max_scu, max_investment, departure_system_id, departure_planet_id
             )
+
             self.update_trade_route_table(trade_routes, columns)
         except Exception as e:
             self.logger.log(logging.ERROR, f"An error occurred while finding trade routes: {e}")
             QMessageBox.critical(self, "Error", f"An error occurred: {e}")
+        finally:
+            self.main_widget.set_gui_enabled(True)
+            self.progress_bar.setVisible(False)
+            self.main_progress_bar.setVisible(False)
 
     def validate_inputs(self):
         max_scu = int(self.max_scu_input.text()) if self.max_scu_input.text() else sys.maxsize
@@ -166,7 +192,12 @@ class TradeRouteTab(QWidget):
             logging.INFO,
             f"Iterating through {len(departure_commodities.get('data', []))} commodities at departure terminal"
         )
+        universe = len(departure_commodities.get("data", []))
+        self.main_progress_bar.setMaximum(universe)
+        actionProgress = 0
         for departure_commodity in departure_commodities.get("data", []):
+            self.main_progress_bar.setValue(actionProgress)
+            actionProgress += 1
             if departure_commodity.get("price_buy") == 0:
                 continue
             arrival_commodities = await self.api.fetch_data(
@@ -182,14 +213,21 @@ class TradeRouteTab(QWidget):
                 arrival_commodities, departure_commodity, max_scu, max_investment, departure_system_id,
                 departure_planet_id, departure_terminal_id
             ))
+        self.main_progress_bar.setValue(actionProgress)
         return trade_routes
 
     async def process_arrival_commodities(
         self, arrival_commodities, departure_commodity, max_scu, max_investment, departure_system_id,
         departure_planet_id, departure_terminal_id
     ):
+        arrival_commodities = arrival_commodities.get("data", [])
         trade_routes = []
-        for arrival_commodity in arrival_commodities.get("data", []):
+        universe = len(arrival_commodities)
+        self.progress_bar.setMaximum(universe)
+        actionProgress = 0
+        for arrival_commodity in arrival_commodities:
+            self.progress_bar.setValue(actionProgress)
+            actionProgress += 1
             if arrival_commodity.get("is_available") == 0 or arrival_commodity.get("id_terminal") == departure_terminal_id:
                 continue
             if self.filter_system_checkbox.isChecked() and arrival_commodity.get("id_star_system") != departure_system_id:
@@ -205,6 +243,7 @@ class TradeRouteTab(QWidget):
             )
             if trade_route:
                 trade_routes.append(trade_route)
+        self.progress_bar.setValue(actionProgress)
         return trade_routes
 
     async def calculate_trade_route_details(
@@ -315,3 +354,13 @@ class TradeRouteTab(QWidget):
         else:
             self.logger.log(logging.ERROR, "An error occurred while selecting trade route")
             QMessageBox.critical(self, "Error", "An error occurred")
+
+    def set_gui_enabled(self, enabled):
+        for input in self.findChildren(QLineEdit):
+            input.setEnabled(enabled)
+        for checkbox in self.findChildren(QCheckBox):
+            checkbox.setEnabled(enabled)
+        for combo in self.findChildren(QComboBox):
+            combo.setEnabled(enabled)
+        for button in self.findChildren(QPushButton):
+            button.setEnabled(enabled)
