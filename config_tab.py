@@ -107,3 +107,11 @@ class ConfigTab(QWidget):
         logger.debug("Logging level set to: %s", logging_level)
 
         QMessageBox.information(self, "Configuration", "Configuration saved successfully!")
+
+    def set_gui_enabled(self, enabled):
+        for input in self.findChildren(QLineEdit):
+            input.setEnabled(enabled)
+        for combo in self.findChildren(QComboBox):
+            combo.setEnabled(enabled)
+        for button in self.findChildren(QPushButton):
+            button.setEnabled(enabled)

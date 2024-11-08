@@ -313,3 +313,14 @@ class TradeTab(QWidget):
         self.terminal_combo.blockSignals(False)
         self.planet_combo.blockSignals(False)
         self.system_combo.blockSignals(False)
+
+    def set_gui_enabled(self, enabled):
+        for input in self.findChildren(QLineEdit):
+            input.setEnabled(enabled)
+        for combo in self.findChildren(QComboBox):
+            combo.setEnabled(enabled)
+        for button in self.findChildren(QPushButton):
+            button.setEnabled(enabled)
+        if enabled:
+            self.update_buy_price(self.commodity_buy_list.currentItem(), self.commodity_buy_list.currentItem())
+            self.update_sell_price(self.commodity_sell_list.currentItem(), self.commodity_sell_list.currentItem())
