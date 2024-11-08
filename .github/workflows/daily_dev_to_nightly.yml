@@ -1,0 +1,33 @@
+name: Daily Merge Dev to Nightly
+
+on:
+  schedule:
+    - cron: '0 9 * * *' # This cron expression means "every day at midnight UTC"
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set up Git
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+    - name: Fetch all branches
+      run: git fetch --all
+
+    - name: Checkout nightly branch
+      run: git checkout nightly
+
+    - name: Merge dev into nightly
+      run: |
+        git merge origin/dev
+        git push origin nightly
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
