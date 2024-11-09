@@ -237,7 +237,8 @@ class TradeTab(QWidget):
         except aiohttp.ClientResponseError as e:
             if e.status == 403:
                 logger.warning("API Key given is absent or invalid")
-                QMessageBox.warning(self, "API Key given is absent or invalid", "Switch to Configuration tab\nEnter a valid API Key & Secret Key\nSave Configuration")
+                QMessageBox.warning(self, "API Key given is absent or invalid",
+                                    "Switch to Configuration tab\nEnter a valid API Key & Secret Key\nSave Configuration")
             else:
                 logger.exception(f"An unexpected error occurred: {e}")
                 QMessageBox.critical(self, "Error", f"An error occurred: {e}")
