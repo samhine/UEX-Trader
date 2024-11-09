@@ -129,7 +129,7 @@ class API:
                 response.raise_for_status()  # Raise an exception for bad status codes
                 return await response.json()
         except aiohttp.ClientResponseError as e:
-            logger.error(f"API request failed with status {e.status}: {e.message} - {await e.text()}")
+            logger.error(f"API request failed with status {e.status}: {e.message} - {e.request_info.url}")
             raise  # Re-raise the exception to be handled by the calling function
         except aiohttp.ClientError as e:
             logger.error(f"API request failed: {e}")

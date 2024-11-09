@@ -1,5 +1,6 @@
 import logging
 import json
+import aiohttp
 import re
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QComboBox, QListWidget
 from PyQt5.QtWidgets import QLineEdit, QPushButton, QMessageBox, QListWidgetItem, QTabWidget
@@ -233,7 +234,13 @@ class TradeTab(QWidget):
             result = await self.api.perform_trade(json_data)
 
             self.handle_trade_result(result, logger)
-
+        except aiohttp.ClientResponseError as e:
+            if e.status == 403:
+                logger.warning("API Key given is absent or invalid")
+                QMessageBox.warning(self, "API Key given is absent or invalid", "Switch to Configuration tab\nEnter a valid API Key & Secret Key\nSave Configuration")
+            else:
+                logger.exception(f"An unexpected error occurred: {e}")
+                QMessageBox.critical(self, "Error", f"An error occurred: {e}")
         except ValueError as e:
             logger.warning(f"Input Error: {e}")
             QMessageBox.warning(self, "Input Error", str(e))
