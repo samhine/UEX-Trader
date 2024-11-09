@@ -271,7 +271,7 @@ class BestTradeRouteTab(QWidget):
         currentProgress = 0
         self.progress_bar.setValue(currentProgress)
         self.main_progress_bar.setValue(currentProgress)
-        self.main_progress_bar.setMaximum(6)
+        self.main_progress_bar.setMaximum(7)
 
         try:
             # [Recover entry parameters]
@@ -322,20 +322,25 @@ class BestTradeRouteTab(QWidget):
             self.main_progress_bar.setValue(currentProgress)
 
             # [Recover departure/destination terminals and commodities]
-            departure_terminals = await self.get_terminals(departure_planets, filter_public_hangars)
+            departure_terminals = await self.get_terminals_from_planets(departure_planets, filter_public_hangars)
             self.logger.log(logging.INFO, f"{len(departure_terminals)} Departure Terminals found.")
             currentProgress += 1
             self.main_progress_bar.setValue(currentProgress)
 
-            buy_commodities, sell_commodities = await self.get_trade_routes_commodities(departure_terminals,
-                                                                                        destination_planets,
-                                                                                        filter_public_hangars)
+            buy_commodities = await self.get_buy_commodities_from_terminals(departure_terminals)
+            self.logger.log(logging.INFO, f"{len(buy_commodities)} Buy Commodities found.")
+            currentProgress += 1
+            self.main_progress_bar.setValue(currentProgress)
+
+            sell_commodities = await self.get_sell_commodities_from_commodities_prices(buy_commodities, filter_public_hangars)
+            self.logger.log(logging.INFO, f"{len(sell_commodities)} Sell Commodities found.")
             currentProgress += 1
             self.main_progress_bar.setValue(currentProgress)
 
             trade_routes = await self.calculate_trade_routes_rework(buy_commodities, sell_commodities,
                                                                     max_scu, max_investment,
                                                                     ignore_stocks, ignore_demand)
+            self.logger.log(logging.INFO, f"{len(trade_routes)} Trade routes found.")
             currentProgress += 1
             self.main_progress_bar.setValue(currentProgress)
             self.logger.log(logging.INFO, f"Finished calculating Best Trade Routes : {len(trade_routes)} found")
@@ -370,8 +375,11 @@ class BestTradeRouteTab(QWidget):
         QApplication.processEvents()
         return trade_routes
 
-    async def get_terminals(self, filtering_planets, filter_public_hangars=False):
+    async def get_terminals_from_planets(self, filtering_planets, filter_public_hangars=False):
         terminals = []
+        universe = len(filtering_planets)
+        self.progress_bar.setMaximum(universe)
+        actionProgress = 0
         # Get all terminals (filter by system/planet) from /terminals
         for planet in filtering_planets:
             returned_terminals = await self.api.fetch_terminals(planet["id_star_system"],
@@ -380,9 +388,11 @@ class BestTradeRouteTab(QWidget):
                 if not filter_public_hangars or (terminal["city_name"]
                                                  or terminal["space_station_name"]):
                     terminals.append(terminal)
+            actionProgress += 1
+            self.progress_bar.setValue(actionProgress)
         return terminals
 
-    async def get_trade_routes_commodities(self, departure_terminals, destination_planets, filter_public_hangars=False):
+    async def get_buy_commodities_from_terminals(self, departure_terminals):
         buy_commodities = []
         universe = len(departure_terminals)
         self.progress_bar.setMaximum(universe)
@@ -395,29 +405,28 @@ class BestTradeRouteTab(QWidget):
             actionProgress += 1
             self.progress_bar.setValue(actionProgress)
         self.logger.log(logging.INFO, f"{len(buy_commodities)} Buy Commodities found.")
+        return buy_commodities
 
+    async def get_sell_commodities_from_commodities_prices(self, buy_commodities, filter_public_hangars=False):
         grouped_buy_commodities_ids = []
         # Establish a GROUPED list of BUY commodities (by commodity_id)
         grouped_buy_commodities_ids = set(map(lambda x: x["id_commodity"], buy_commodities))
         self.logger.log(logging.INFO, f"{len(grouped_buy_commodities_ids)} Unique Buy Commodities found.")
 
-        arrival_terminals = await self.get_terminals(destination_planets, filter_public_hangars)
-        # Get all arrival terminals (filter by destination system/planet) from /terminals
-        self.logger.log(logging.INFO, f"{len(arrival_terminals)} Arrival Terminals found.")
-
         sell_commodities = []
         universe = len(grouped_buy_commodities_ids)
         self.progress_bar.setMaximum(universe)
         actionProgress = 0
-        # Get all SELL commodities (for each unique BUY commodity, available in arrival_terminals) from /commodities_prices
+        # Get all SELL commodities (for each unique BUY commodity) from /commodities_prices
         for grouped_buy_id in grouped_buy_commodities_ids:
             sell_commodities.extend([commodity for commodity in await self.api.fetch_commodities_by_id(grouped_buy_id)
-                                    if commodity["price_sell"] > 0])
+                                    if commodity["price_sell"] > 0 and (not filter_public_hangars or
+                                                                        (commodity["city_name"] or
+                                                                         commodity["space_station_name"]))])
             actionProgress += 1
             self.progress_bar.setValue(actionProgress)
         self.logger.log(logging.INFO, f"{len(sell_commodities)} Sell Commodities found.")
-
-        return buy_commodities, sell_commodities
+        return sell_commodities
 
     async def calculate_trade_routes_rework(self, buy_commodities, sell_commodities,
                                             max_scu, max_investment, ignore_stocks,
