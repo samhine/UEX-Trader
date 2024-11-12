@@ -24,12 +24,7 @@ class BestTradeRouteTab(QWidget):
             self.config_manager = ConfigManager._instance
         # Initialize the API instance only once
         if API._instance is None:
-            self.api = API(
-                self.config_manager.get_api_key(),
-                self.config_manager.get_secret_key(),
-                self.config_manager.get_is_production(),
-                self.config_manager.get_debug()
-            )
+            self.api = API(self.config_manager)
         else:
             self.api = API._instance
         self.logger = logging.getLogger(__name__)
