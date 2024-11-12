@@ -7,8 +7,9 @@ from config_manager import ConfigManager
 def config_file(tmpdir):
     config_path = tmpdir.join("config.ini")
     with open(config_path, "w") as f:
-        f.write("[API]\nkey=c3RvcmVkS2V5\nsecret_key=c3RvcmVkU2VjcmV0S2V5\n[SETTINGS]\nis_production=False\n\
-                debug=True\nappearance_mode=Light\n[GUI]\nwindow_width=1024\nwindow_height=768\n")
+        f.writelines(["[API]", "key=c3RvcmVkS2V5", "secret_key=c3RvcmVkU2VjcmV0S2V5"])
+        f.writelines(["[SETTINGS]", "is_production=False", "debug=True", "appearance_mode=Light"])
+        f.writelines(["[GUI]", "window_width=1024", "window_height=768"])
     return config_path
 
 
