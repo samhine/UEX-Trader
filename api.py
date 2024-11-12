@@ -7,21 +7,28 @@ logger = logging.getLogger(__name__)
 
 
 class API:
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super(API, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self, api_key, secret_key, is_production, debug, cache_ttl=1800):
-        self.API_BASE_URL = "https://uexcorp.space/api/2.0"
-        if is_production:
-            self.API_BASE_URL = "https://uexcorp.space/api/2.0"  # Replace with actual production URL
+        if not hasattr(self, 'initialized'):  # Ensure __init__ is only called once
+            self.API_BASE_URL = "https://uexcorp.space/api/2.0"
+            if is_production:
+                self.API_BASE_URL = "https://uexcorp.space/api/2.0"  # Replace with actual production URL
+            self.api_key = api_key
+            self.secret_key = secret_key
+            self.session = aiohttp.ClientSession()
+            self.cache = CacheManager(ttl=cache_ttl)
+            self.initialized = True
 
+    def update_api_key(self, api_key):
         self.api_key = api_key
-        self.secret_key = secret_key
-        self.is_production = is_production
-        self.debug = debug
-        self.session = aiohttp.ClientSession()
-        self.cache = CacheManager(ttl=cache_ttl)
 
-    def update_credentials(self, api_key, secret_key):
-        """Updates the API key and secret key."""
-        self.api_key = api_key
+    def update_secret_key(self, secret_key):
         self.secret_key = secret_key
 
     async def fetch_data(self, endpoint, params=None):
@@ -30,7 +37,6 @@ class API:
         if cached_data:
             logger.debug(f"Cache hit for {cache_key}")
             return cached_data
-
         url = f"{self.API_BASE_URL}{endpoint}"
         logger.debug(f"API Request: GET {url} {params if params else ''}")
         async with aiohttp.ClientSession() as session:
@@ -53,7 +59,6 @@ class API:
             "secret_key": self.secret_key
         }
         params = {"name": commodity_name}
-
         try:
             async with self.session.get(url, headers=headers, params=params) as response:
                 if response.status == 200:
@@ -122,7 +127,6 @@ class API:
             "Authorization": f"Bearer {self.api_key}",  # Send api_key as Bearer Token
             "secret_key": self.secret_key
         }
-
         try:
             async with self.session.post(url, data=data, headers=headers) as response:
                 logger.info(f"API Request: POST {url} {data}")

@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QComboBox, QMessageBox
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QComboBox
 from config_manager import ConfigManager
 import logging
 from logger_setup import setup_logger
@@ -8,7 +8,11 @@ class ConfigTab(QWidget):
     def __init__(self, main_widget):
         super().__init__()
         self.main_widget = main_widget
-        self.config_manager = ConfigManager()
+        # Initial the ConfigManager instance only once
+        if ConfigManager._instance is None:
+            self.config_manager = ConfigManager()
+        else:
+            self.config_manager = ConfigManager._instance
         self.initUI()
 
     def initUI(self):
@@ -17,6 +21,7 @@ class ConfigTab(QWidget):
         api_key_label = QLabel("UEXcorp API Key:")
         self.api_key_input = QLineEdit(self.config_manager.get_api_key())
         self.api_key_input.setEchoMode(QLineEdit.Password)
+        self.api_key_input.editingFinished.connect(self.update_api_key)
 
         # Create the eye button for API Key
         self.show_api_key_button = QPushButton("👁", self)
@@ -27,6 +32,7 @@ class ConfigTab(QWidget):
         secret_key_label = QLabel("UEXcorp Secret Key:")
         self.secret_key_input = QLineEdit(self.config_manager.get_secret_key())
         self.secret_key_input.setEchoMode(QLineEdit.Password)
+        self.secret_key_input.editingFinished.connect(self.update_secret_key)
 
         # Create the eye button for Secret Key
         self.show_secret_key_button = QPushButton("👁", self)
@@ -36,8 +42,9 @@ class ConfigTab(QWidget):
 
         is_production_label = QLabel("Is Production:")
         self.is_production_input = QComboBox()
-        self.is_production_input.addItems(["False", "True"])
+        self.is_production_input.addItems(["True", "False"])
         self.is_production_input.setCurrentText(str(self.config_manager.get_is_production()))
+        self.is_production_input.currentIndexChanged.connect(self.update_is_production)
 
         debug_label = QLabel("Debug Mode:")
         self.debug_input = QComboBox()
@@ -47,12 +54,9 @@ class ConfigTab(QWidget):
 
         appearance_label = QLabel("Appearance Mode:")
         self.appearance_input = QComboBox()
-        self.appearance_input.addItems(["Light", "Dark"])
+        self.appearance_input.addItems(["Dark", "Light"])
         self.appearance_input.setCurrentText(self.config_manager.get_appearance_mode())
         self.appearance_input.currentIndexChanged.connect(self.update_appearance_mode)
-
-        save_config_button = QPushButton("Save Configuration")
-        save_config_button.clicked.connect(self.save_configuration)
 
         layout.addWidget(api_key_label)
         layout.addWidget(self.api_key_input)
@@ -66,7 +70,6 @@ class ConfigTab(QWidget):
         layout.addWidget(self.debug_input)
         layout.addWidget(appearance_label)
         layout.addWidget(self.appearance_input)
-        layout.addWidget(save_config_button)
 
         self.setLayout(layout)
 
@@ -86,27 +89,22 @@ class ConfigTab(QWidget):
         new_appearance = self.appearance_input.currentText()
         self.config_manager.set_appearance_mode(new_appearance)
         self.main_widget.apply_appearance_mode(new_appearance)
+        self.config_manager.set_appearance_mode(self.appearance_input.currentText())
+
+    def update_is_production(self):
+        self.config_manager.set_is_production(self.is_production_input.currentText() == "True")
 
     def update_debug_mode(self):
         debug = self.debug_input.currentText() == "True"
         logging_level = logging.DEBUG if debug else logging.INFO
         setup_logger(logging_level)
-
-    def save_configuration(self):
-        self.config_manager.set_api_key(self.api_key_input.text())
-        self.config_manager.set_secret_key(self.secret_key_input.text())
-        self.config_manager.set_is_production(self.is_production_input.currentText() == "True")
         self.config_manager.set_debug(self.debug_input.currentText() == "True")
-        self.config_manager.set_appearance_mode(self.appearance_input.currentText())
 
-        # Reconfigure logging based on the new debug setting
-        debug = self.config_manager.get_debug()
-        logging_level = logging.DEBUG if debug else logging.INFO
-        logging.getLogger().setLevel(logging_level)  # Update the root logger's level
-        logger = logging.getLogger(__name__)
-        logger.debug("Logging level set to: %s", logging_level)
+    def update_api_key(self):
+        self.config_manager.set_api_key(self.api_key_input.text())
 
-        QMessageBox.information(self, "Configuration", "Configuration saved successfully!")
+    def update_secret_key(self):
+        self.config_manager.set_secret_key(self.secret_key_input.text())
 
     def set_gui_enabled(self, enabled):
         for input in self.findChildren(QLineEdit):
