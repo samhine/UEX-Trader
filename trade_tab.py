@@ -14,13 +14,21 @@ class TradeTab(QWidget):
     def __init__(self, main_widget):
         super().__init__()
         self.main_widget = main_widget
-        self.config_manager = ConfigManager()
-        self.api = API(
-            self.config_manager.get_api_key(),
-            self.config_manager.get_secret_key(),
-            self.config_manager.get_is_production(),
-            self.config_manager.get_debug()
-        )
+        # Initial the ConfigManager instance only once
+        if ConfigManager._instance is None:
+            self.config_manager = ConfigManager()
+        else:
+            self.config_manager = ConfigManager._instance
+        # Initialize the API instance only once
+        if API._instance is None:
+            self.api = API(
+                self.config_manager.get_api_key(),
+                self.config_manager.get_secret_key(),
+                self.config_manager.get_is_production(),
+                self.config_manager.get_debug()
+            )
+        else:
+            self.api = API._instance
         self.commodities = []
         self.terminals = []
         self.initUI()
