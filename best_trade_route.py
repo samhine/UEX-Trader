@@ -29,6 +29,7 @@ class BestTradeRouteTab(QWidget):
             self.api = API._instance
         self.logger = logging.getLogger(__name__)
         self.terminals = []
+        self.current_trades = []
         self.initUI()
         asyncio.ensure_future(self.load_systems())
         self.columns = [
@@ -95,6 +96,19 @@ class BestTradeRouteTab(QWidget):
         self.progress_bar.setVisible(False)
         layout.addWidget(self.main_progress_bar)
         layout.addWidget(self.progress_bar)
+
+        self.page_items_combo = QComboBox()
+        self.page_items_combo.addItem("10 maximum results", 10)
+        self.page_items_combo.addItem("20 maximum results", 20)
+        self.page_items_combo.addItem("50 maximum results", 50)
+        self.page_items_combo.addItem("100 maximum results", 100)
+        self.page_items_combo.addItem("500 maximum results", 500)
+        self.page_items_combo.addItem("1000 maximum results", 1000)
+        self.page_items_combo.setCurrentIndex(0)
+        self.page_items_combo.currentIndexChanged.connect(
+            lambda: asyncio.ensure_future(self.update_page_items())
+        )
+        layout.addWidget(self.page_items_combo)
 
         self.trade_route_table = QTableWidget()
         layout.addWidget(self.trade_route_table)
@@ -182,6 +196,9 @@ class BestTradeRouteTab(QWidget):
             logging.error(f"Failed to load destination terminals: {e}")
             QMessageBox.critical(self, "Error", f"Failed to load destination terminals: {e}")
 
+    async def update_page_items(self):
+        self.display_trade_routes(self.current_trades, self.columns, quick=False)
+
     async def find_best_trade_routes_users(self):
         self.logger.log(logging.INFO, "Searching for Best Trade Routes")
         self.trade_route_table.setRowCount(0)  # Clear previous results
@@ -249,8 +266,8 @@ class BestTradeRouteTab(QWidget):
             currentProgress += 1
             self.main_progress_bar.setValue(currentProgress)
 
-            trade_routes = await self.calculate_trade_routes_users(commodities_routes, max_scu, max_investment)
-            self.logger.log(logging.INFO, f"{len(trade_routes)} routes found")
+            self.current_trades = await self.calculate_trade_routes_users(commodities_routes, max_scu, max_investment)
+            self.logger.log(logging.INFO, f"{len(self.current_trades)} routes found")
             currentProgress += 1
             self.main_progress_bar.setValue(currentProgress)
             self.logger.log(logging.INFO, "Finished calculating Best Trade Routes")
@@ -340,13 +357,13 @@ class BestTradeRouteTab(QWidget):
             currentProgress += 1
             self.main_progress_bar.setValue(currentProgress)
 
-            trade_routes = await self.calculate_trade_routes_rework(buy_commodities, sell_commodities,
+            self.current_trades = await self.calculate_trade_routes_rework(buy_commodities, sell_commodities,
                                                                     max_scu, max_investment,
                                                                     ignore_stocks, ignore_demand)
-            self.logger.log(logging.INFO, f"{len(trade_routes)} Trade routes found.")
+            self.logger.log(logging.INFO, f"{len(self.current_trades)} Trade routes found.")
             currentProgress += 1
             self.main_progress_bar.setValue(currentProgress)
-            self.logger.log(logging.INFO, f"Finished calculating Best Trade Routes : {len(trade_routes)} found")
+            self.logger.log(logging.INFO, f"Finished calculating Best Trade Routes : {len(self.current_trades)} found")
         except Exception as e:
             self.logger.log(logging.ERROR, f"An error occurred while finding best trade routes: {e}")
             QMessageBox.critical(self, "Error", f"An error occurred: {e}")
@@ -373,7 +390,7 @@ class BestTradeRouteTab(QWidget):
 
     async def calculate_trade_routes_users(self, commodities_routes, max_scu, max_investment):
         trade_routes = await self.process_trade_route_users(commodities_routes, max_scu, max_investment)
-        self.display_trade_routes(trade_routes, self.columns)
+        self.display_trade_routes(trade_routes, self.columns, quick=False)
         # Allow UI to update during the search
         QApplication.processEvents()
         return trade_routes
@@ -456,6 +473,8 @@ class BestTradeRouteTab(QWidget):
                     self.display_trade_routes(trade_routes, self.columns)
                     QApplication.processEvents()
         self.progress_bar.setValue(actionProgress)
+        self.display_trade_routes(trade_routes, self.columns, quick=False)
+        QApplication.processEvents()
         return trade_routes
 
     async def process_trade_route_users(self, commodities_routes, max_scu, max_investment):
@@ -583,10 +602,11 @@ class BestTradeRouteTab(QWidget):
         }
         return route
 
-    def display_trade_routes(self, trade_routes, columns):
+    def display_trade_routes(self, trade_routes, columns, quick=True):
+        nb_items = 5 if quick else self.page_items_combo.currentData()
         self.trade_route_table.setRowCount(0)  # Clear the table before adding sorted results
         trade_routes.sort(key=lambda x: float(x["total_margin"].split()[0]), reverse=True)
-        for i, route in enumerate(trade_routes[:10]):
+        for i, route in enumerate(trade_routes[:nb_items]):
             self.trade_route_table.insertRow(i)
             for j, value in enumerate(route.values()):
                 if j < len(columns) - 1:
