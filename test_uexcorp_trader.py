@@ -1,10 +1,6 @@
 # test_uexcorp_trader.py
-import pytest
-import asyncio
-from PyQt5.QtWidgets import QApplication, QTabWidget
+from PyQt5.QtWidgets import QTabWidget
 from PyQt5.QtGui import QColor
-from qasync import QEventLoop
-from gui import UexcorpTrader
 
 
 def test_uexcorp_trader_init(trader, qtbot):

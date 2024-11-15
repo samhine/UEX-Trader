@@ -24,4 +24,3 @@ def trader(app, qtbot):
     trader = UexcorpTrader(app, loop)
     qtbot.addWidget(trader)
     yield trader
-
