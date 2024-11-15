@@ -1,5 +1,5 @@
 import logging
-import json
+import aiohttp
 import re
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QComboBox, QListWidget
 from PyQt5.QtWidgets import QLineEdit, QPushButton, QMessageBox, QListWidgetItem, QTabWidget
@@ -13,13 +13,16 @@ class TradeTab(QWidget):
     def __init__(self, main_widget):
         super().__init__()
         self.main_widget = main_widget
-        self.config_manager = ConfigManager()
-        self.api = API(
-            self.config_manager.get_api_key(),
-            self.config_manager.get_secret_key(),
-            self.config_manager.get_is_production(),
-            self.config_manager.get_debug()
-        )
+        # Initial the ConfigManager instance only once
+        if ConfigManager._instance is None:
+            self.config_manager = ConfigManager()
+        else:
+            self.config_manager = ConfigManager._instance
+        # Initialize the API instance only once
+        if API._instance is None:
+            self.api = API(self.config_manager)
+        else:
+            self.api = API._instance
         self.commodities = []
         self.terminals = []
         self.initUI()
@@ -76,12 +79,12 @@ class TradeTab(QWidget):
         main_layout.addWidget(sell_price_label)
         main_layout.addWidget(self.sell_price_input)
 
-        self.buy_button = QPushButton("Buy Commodity")
+        self.buy_button = QPushButton("Declare Purchase on UEXcorp")
         self.buy_button.setEnabled(False)
         self.buy_button.clicked.connect(lambda: asyncio.ensure_future(self.buy_commodity()))
         main_layout.addWidget(self.buy_button)
 
-        self.sell_button = QPushButton("Sell Commodity")
+        self.sell_button = QPushButton("Declare Sale on UEXcorp")
         self.sell_button.setEnabled(False)
         self.sell_button.clicked.connect(lambda: asyncio.ensure_future(self.sell_commodity()))
         main_layout.addWidget(self.sell_button)
@@ -225,15 +228,19 @@ class TradeTab(QWidget):
                 "operation": operation,
                 "scu": int(amount),
                 "price": float(price),
-                "is_production": int(self.config_manager.get_is_production()),
             }
 
-            json_data = json.dumps(data)
-            logger.info(f"API Request: POST {self.api.API_BASE_URL}/user_trades_add/ {json_data}")
-            result = await self.api.perform_trade(json_data)
+            result = await self.api.perform_trade(data)
 
             self.handle_trade_result(result, logger)
-
+        except aiohttp.ClientResponseError as e:
+            if e.status == 403:
+                logger.warning("API Key given is absent or invalid")
+                QMessageBox.warning(self, "API Key given is absent or invalid",
+                                    "Switch to Configuration tab\nEnter a valid API Key & Secret Key\nSave Configuration")
+            else:
+                logger.exception(f"An unexpected error occurred: {e}")
+                QMessageBox.critical(self, "Error", f"An error occurred: {e}")
         except ValueError as e:
             logger.warning(f"Input Error: {e}")
             QMessageBox.warning(self, "Input Error", str(e))
