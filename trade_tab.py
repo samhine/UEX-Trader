@@ -1,5 +1,4 @@
 import logging
-import json
 import aiohttp
 import re
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QComboBox, QListWidget
@@ -21,12 +20,7 @@ class TradeTab(QWidget):
             self.config_manager = ConfigManager._instance
         # Initialize the API instance only once
         if API._instance is None:
-            self.api = API(
-                self.config_manager.get_api_key(),
-                self.config_manager.get_secret_key(),
-                self.config_manager.get_is_production(),
-                self.config_manager.get_debug()
-            )
+            self.api = API(self.config_manager)
         else:
             self.api = API._instance
         self.commodities = []
@@ -234,12 +228,9 @@ class TradeTab(QWidget):
                 "operation": operation,
                 "scu": int(amount),
                 "price": float(price),
-                "is_production": int(self.config_manager.get_is_production()),
             }
 
-            json_data = json.dumps(data)
-            logger.info(f"API Request: POST {self.api.API_BASE_URL}/user_trades_add/ {json_data}")
-            result = await self.api.perform_trade(json_data)
+            result = await self.api.perform_trade(data)
 
             self.handle_trade_result(result, logger)
         except aiohttp.ClientResponseError as e:

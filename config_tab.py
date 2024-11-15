@@ -1,7 +1,5 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QComboBox
 from config_manager import ConfigManager
-import logging
-from logger_setup import setup_logger
 
 
 class ConfigTab(QWidget):
@@ -95,9 +93,6 @@ class ConfigTab(QWidget):
         self.config_manager.set_is_production(self.is_production_input.currentText() == "True")
 
     def update_debug_mode(self):
-        debug = self.debug_input.currentText() == "True"
-        logging_level = logging.DEBUG if debug else logging.INFO
-        setup_logger(logging_level)
         self.config_manager.set_debug(self.debug_input.currentText() == "True")
 
     def update_api_key(self):

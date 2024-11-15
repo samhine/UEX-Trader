@@ -3,6 +3,7 @@ import configparser
 import logging
 import base64
 from api import API
+from logger_setup import setup_logger
 
 logger = logging.getLogger(__name__)
 
@@ -20,16 +21,12 @@ class ConfigManager:
             self.config_file = config_file
             self.config = configparser.ConfigParser()
             self.load_config()
+            self.set_debug(self.get_debug())
             self.initialized = True
 
             # Initialize the API instance only once
             if API._instance is None:
-                self.api = API(
-                    self.get_api_key(),
-                    self.get_secret_key(),
-                    self.get_is_production(),
-                    self.get_debug()
-                )
+                self.api = API(self)
             else:
                 self.api = API._instance
 
@@ -49,7 +46,6 @@ class ConfigManager:
             self.config["API"] = {}
         encoded_key = base64.b64encode(api_key.encode('utf-8')).decode('utf-8')
         self.config['API']['key'] = encoded_key
-        self.api.update_api_key(api_key)
         self.save_config()
 
     def get_secret_key(self):
@@ -61,7 +57,6 @@ class ConfigManager:
             self.config["API"] = {}
         encoded_secret_key = base64.b64encode(secret_key.encode('utf-8')).decode('utf-8')
         self.config['API']['secret_key'] = encoded_secret_key
-        self.api.update_secret_key(secret_key)
         self.save_config()
 
     def get_is_production(self):
@@ -77,6 +72,8 @@ class ConfigManager:
         return self.config.getboolean("SETTINGS", "debug", fallback=False)
 
     def set_debug(self, debug):
+        logging_level = logging.DEBUG if debug else logging.INFO
+        setup_logger(logging_level)
         if "SETTINGS" not in self.config:
             self.config["SETTINGS"] = {}
         self.config["SETTINGS"]["debug"] = str(debug)
