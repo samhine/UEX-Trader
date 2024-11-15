@@ -1,4 +1,3 @@
-import logging
 from PyQt5.QtWidgets import QApplication, QTabWidget, QVBoxLayout, QWidget, QStyleFactory
 from PyQt5.QtGui import QIcon, QPalette, QColor
 from PyQt5.QtCore import Qt
@@ -6,7 +5,6 @@ from config_tab import ConfigTab
 from trade_tab import TradeTab
 from trade_route_tab import TradeRouteTab
 from best_trade_route import BestTradeRouteTab
-from logger_setup import setup_logger
 from config_manager import ConfigManager
 
 
@@ -16,14 +14,8 @@ class UexcorpTrader(QWidget):
         self.app = app
         self.loop = loop
         self.config_manager = ConfigManager()
-        self.setup_logger()
         self.initUI()
         self.apply_appearance_mode()
-
-    def setup_logger(self):
-        debug = self.config_manager.get_debug()
-        logging_level = logging.DEBUG if debug else logging.INFO
-        setup_logger(logging_level)
 
     def initUI(self):
         self.setWindowTitle("UEXcorp Trader")
