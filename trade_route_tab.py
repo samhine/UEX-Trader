@@ -74,9 +74,9 @@ class TradeRouteTab(QWidget):
         layout.addWidget(self.ignore_demand_checkbox)
         self.filter_public_hangars_checkbox = QCheckBox("No Public Hangars")
         layout.addWidget(self.filter_public_hangars_checkbox)
-        find_route_button = QPushButton("Find Trade Route")
-        find_route_button.clicked.connect(lambda: asyncio.ensure_future(self.find_trade_routes()))
-        layout.addWidget(find_route_button)
+        self.find_route_button = QPushButton("Find Trade Route")
+        self.find_route_button.clicked.connect(lambda: asyncio.ensure_future(self.find_trade_routes()))
+        layout.addWidget(self.find_route_button)
 
         self.main_progress_bar = QProgressBar()
         self.main_progress_bar.setVisible(False)
