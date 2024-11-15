@@ -358,8 +358,8 @@ class BestTradeRouteTab(QWidget):
             self.main_progress_bar.setValue(currentProgress)
 
             self.current_trades = await self.calculate_trade_routes_rework(buy_commodities, sell_commodities,
-                                                                    max_scu, max_investment,
-                                                                    ignore_stocks, ignore_demand)
+                                                                           max_scu, max_investment,
+                                                                           ignore_stocks, ignore_demand)
             self.logger.log(logging.INFO, f"{len(self.current_trades)} Trade routes found.")
             currentProgress += 1
             self.main_progress_bar.setValue(currentProgress)
