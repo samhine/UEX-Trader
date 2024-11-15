@@ -2,15 +2,33 @@
 import configparser
 import logging
 import base64
+from api import API
+from logger_setup import setup_logger
 
 logger = logging.getLogger(__name__)
 
 
 class ConfigManager:
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super(ConfigManager, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self, config_file="config.ini"):
-        self.config_file = config_file
-        self.config = configparser.ConfigParser()
-        self.load_config()
+        if not hasattr(self, 'initialized'):  # Ensure __init__ is only called once
+            self.config_file = config_file
+            self.config = configparser.ConfigParser()
+            self.load_config()
+            self.set_debug(self.get_debug())
+            self.initialized = True
+
+            # Initialize the API instance only once
+            if API._instance is None:
+                self.api = API(self)
+            else:
+                self.api = API._instance
 
     def load_config(self):
         self.config.read(self.config_file)
@@ -23,10 +41,10 @@ class ConfigManager:
         encoded_key = self.config.get("API", "key", fallback="")
         return base64.b64decode(encoded_key).decode('utf-8') if encoded_key else ""
 
-    def set_api_key(self, key):
+    def set_api_key(self, api_key):
         if "API" not in self.config:
             self.config["API"] = {}
-        encoded_key = base64.b64encode(key.encode('utf-8')).decode('utf-8')
+        encoded_key = base64.b64encode(api_key.encode('utf-8')).decode('utf-8')
         self.config['API']['key'] = encoded_key
         self.save_config()
 
@@ -42,7 +60,7 @@ class ConfigManager:
         self.save_config()
 
     def get_is_production(self):
-        return self.config.getboolean("SETTINGS", "is_production", fallback=False)
+        return self.config.getboolean("SETTINGS", "is_production", fallback=True)
 
     def set_is_production(self, is_production):
         if "SETTINGS" not in self.config:
@@ -54,13 +72,15 @@ class ConfigManager:
         return self.config.getboolean("SETTINGS", "debug", fallback=False)
 
     def set_debug(self, debug):
+        logging_level = logging.DEBUG if debug else logging.INFO
+        setup_logger(logging_level)
         if "SETTINGS" not in self.config:
             self.config["SETTINGS"] = {}
         self.config["SETTINGS"]["debug"] = str(debug)
         self.save_config()
 
     def get_appearance_mode(self):
-        return self.config.get("SETTINGS", "appearance_mode", fallback="Light")
+        return self.config.get("SETTINGS", "appearance_mode", fallback="Dark")
 
     def set_appearance_mode(self, mode):
         if "SETTINGS" not in self.config:
