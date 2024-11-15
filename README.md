@@ -1,18 +1,32 @@
 # UEX-Trader
 
-UEX-Trader is a desktop application designed to facilitate trading within the UEXcorp space trading ecosystem. The application allows users to configure API keys, toggle between production and debug modes, and trade commodities by selecting systems, planets, and terminals. Additionally, users can switch between Light and Dark appearance modes for better user experience.
+UEX-Trader is a desktop application designed to facilitate trading in Star Citizen.
+The application allows users to declare purchase/sale on UEXcorp quickly or search for the best trades all around the Verse.
+It is using UEXcorp as the database for all pieces of information read or given.
 
 ![UEX-Trader Icon](resources/UEXTrader_icon.png)
 
-## Prerequisites
+## Installation for End-Users
+
+1. **Download the latest Release for your Operating System:**
+
+https://github.com/Hybris95/UEX-Trader/releases
+
+2. **Extract the Zip file wherever you want the software to be**
+
+3. **Open the "UEX-Trader" folder**
+
+4. **Start "UEX-Trader" executable**
+
+## Developers Prerequisites
 
 Before you begin, ensure you have met the following requirements:
 
 - You have Python 3.11.10 or higher installed.
 - You have `pip` (Python package installer) installed.
-- You have access to the UEXcorp API.
+- (Optional) You have access to the UEXcorp API.
 
-## Installation
+## Installation for Developers
 
 1. **Clone the repository:**
 
@@ -51,111 +65,52 @@ pip install -r requirements.txt
 
 1. **Run the application:**
 
+- Either with python command for developers
 ```sh
 python main.py
 ```
+- Or by starting the downloaded executable
 
-2. **The application window should open, displaying the Configuration, Trade Commodity, Find Trade Route, and Best Trade Routes tabs.**
+2. **The application window should open:**
+
+- Displaying the Configuration, Trade Commodity, Find Trade Route, and Best Trade Routes tabs.
 
 ## Configuration
 
 1. **Open the Configuration tab:**
 
-- **UEXcorp API Key:** Enter your UEXcorp App Access Token ( you first have to create an App on UEXCorp : https://uexcorp.space/api/apps ).
-- **UEXcorp Secret Key:** Enter your UEXcorp Secret key ( Account for UEXcorp required : https://uexcorp.space/account/home/tab/account_main/ )
-- **Is Production:** Toggle between `True` and `False` to switch between production and development environments.
-- **Debug Mode:** Toggle between `True` and `False` to enable or disable debug logging.
+- **UEXcorp API Key:** Enter your UEXcorp App Access Token
+  ( you first have to create an App on UEXCorp : https://uexcorp.space/api/apps )
+  Required only for Declaring Purchases/Sales on UEXcorp
+- **UEXcorp Secret Key:** Enter your UEXcorp Secret key
+  ( Account for UEXcorp required : https://uexcorp.space/account/home/tab/account_main/ )
+  Required only for Declaring Purchases/Sales on UEXcorp
+- **Is Production:** Toggle between `True` and `False` to switch between production and development environments
+  (only useful for Developers).
+- **Debug Mode:** Toggle between `True` and `False` to enable or disable debug logging
+  (only useful for Developers).
 - **Appearance Mode:** Select between `Light` and `Dark` modes for the application's appearance.
-
-2. **Save Configuration:**
-
-- Click the "Save Configuration" button to save your settings. The application will apply the new appearance mode if it has changed.
 
 ## Use Cases
 
 ### Trading Commodities
 
-1. **Select System:**
-
-- Choose a star system from the dropdown list.
-
-2. **Select Planet:**
-
-- Choose a planet from the dropdown list.
-
-3. **Select Terminal:**
-
-- Use the search input to filter and select a terminal. You can type part of the terminal's name to quickly find it.
-
-4. **Select Commodity:**
-
-- Choose a commodity from the dropdown list.
-
-5. **Enter Amount and Price:**
-
-- Enter the amount (in SCU) and price (in UEC/SCU) for the commodity.
-
-6. **Execute Trade:**
-
-- Click "Buy Commodity" to buy or "Sell Commodity" to sell the selected commodity.
+The "Trade Commodity" tab allows you to Declare your Purchases/Sales on UEXcorp.
+Doing so, will help the community having an up to date database.
+By the way, you will be able to watch your trading history and all benefits you made from UEXcorp easely.
 
 ### Finding Trade Routes
 
-1. **Select Departure System, Planet, and Terminal:**
-
-- Choose your desired departure location using the respective dropdown menus.
-
-2. **(Optional) Set Restrictions:**
-
-- Check "Restrict to System" to limit trade routes within the selected departure system.
-- Check "Restrict to Planet" to limit trade routes within the selected departure planet.
-
-3. **(Optional) Set Investment Limits:**
-
-- Enter a value in "Max Investment" to limit the maximum investment for each trade route.
-- Enter a value in "Max SCU" to limit the maximum SCU purchased for each trade route.
-- Enter a value in "Min SCU at Departure" to filter out routes with insufficient SCU available at the departure terminal.
-
-4. **Initiate Search:**
-
-- The application will automatically search and display the top 10 most profitable trade routes based on your selected criteria.
+The "Find Trade Route" tab allows you to find all trade destinations from a departing point.
+If you ever wanted to leave somewhere but if possible, not empty, this tool will allow you to quickly find where to go and what to buy.
 
 ### Best Trade Routes
 
-1. **Select Departure System and Planet:**
+The "Best Trade Routes" tab allows you to find the best trades all around the Verse.
+You can filter the trades depending on various data like for example : your maximum SCU or investment.
 
-- Choose your desired departure system and planet using the respective dropdown menus. You can select "All Planets" to include all planets in the selected system.
-
-2. **Select Destination System and Planet:**
-
-- Choose your desired destination system and planet using the respective dropdown menus. You can select "All Systems" to include all systems and "All Planets" to include all planets in the selected system.
-
-3. **(Optional) Set Investment Limits:**
-
-- Enter a value in "Max Investment" to limit the maximum investment for each trade route.
-- Enter a value in "Max SCU" to limit the maximum SCU purchased for each trade route.
-
-4. **(Optional) Set Filters:**
-
-- Check "Ignore Stocks" to ignore the available SCU at the departure terminal.
-- Check "Ignore Demand" to ignore the demand SCU at the arrival terminal.
-
-5. **Initiate Search:**
-
-- Click "Find Best Trade Routes" to search for the best trade routes based on your selected criteria. The application will display the top 10 most profitable trade routes.
-
-6. **Execute Trade:**
-
-- Click "Select to Buy" to buy the selected commodity or "Select to Sell" to sell the selected commodity.
-
-### Appearance Mode
-
-- **Light Mode:** Provides a standard light theme for the application.
-- **Dark Mode:** Provides a dark theme for better visibility in low-light environments.
-
-## Logging
-
-- The application logs various actions and API responses to help with debugging and monitoring. Logs are displayed in the console where the application is run.
+After you have found an interesting trade and made the purchase/sale ingame,
+you can quickly click on "Buy" or "Sell" to pre-enter the details on the "Trade Commodity" tab.
 
 ## License
 
@@ -164,3 +119,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Contact
 
 If you have any questions or issues, please open an issue on the GitHub repository.
+You can also find us on Discord : https://discord.gg/MzzJ2rnm2G
