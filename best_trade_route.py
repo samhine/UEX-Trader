@@ -17,15 +17,19 @@ class BestTradeRouteTab(QWidget):
     def __init__(self, main_widget):
         super().__init__()
         self.main_widget = main_widget
-        self.config_manager = ConfigManager()
-        self.api = API(
-            self.config_manager.get_api_key(),
-            self.config_manager.get_secret_key(),
-            self.config_manager.get_is_production(),
-            self.config_manager.get_debug()
-        )
+        # Initial the ConfigManager instance only once
+        if ConfigManager._instance is None:
+            self.config_manager = ConfigManager()
+        else:
+            self.config_manager = ConfigManager._instance
+        # Initialize the API instance only once
+        if API._instance is None:
+            self.api = API(self.config_manager)
+        else:
+            self.api = API._instance
         self.logger = logging.getLogger(__name__)
         self.terminals = []
+        self.current_trades = []
         self.initUI()
         asyncio.ensure_future(self.load_systems())
         self.columns = [
@@ -77,14 +81,16 @@ class BestTradeRouteTab(QWidget):
         layout.addWidget(self.ignore_demand_checkbox)
         self.filter_public_hangars_checkbox = QCheckBox("No Public Hangars")
         layout.addWidget(self.filter_public_hangars_checkbox)
+        self.filter_space_only_checkbox = QCheckBox("Space Only")
+        layout.addWidget(self.filter_space_only_checkbox)
 
-        find_route_button_rework = QPushButton("Find Best Trade Routes")
-        find_route_button_rework.clicked.connect(lambda: asyncio.ensure_future(self.find_best_trade_routes_rework()))
-        layout.addWidget(find_route_button_rework)
+        self.find_route_button_rework = QPushButton("Find Best Trade Routes")
+        self.find_route_button_rework.clicked.connect(lambda: asyncio.ensure_future(self.find_best_trade_routes_rework()))
+        layout.addWidget(self.find_route_button_rework)
 
-        find_route_button_users = QPushButton("Find Best Trade Routes (from User Trades)")
-        find_route_button_users.clicked.connect(lambda: asyncio.ensure_future(self.find_best_trade_routes_users()))
-        layout.addWidget(find_route_button_users)
+        self.find_route_button_users = QPushButton("Find Best Trade Routes (from User Trades)")
+        self.find_route_button_users.clicked.connect(lambda: asyncio.ensure_future(self.find_best_trade_routes_users()))
+        layout.addWidget(self.find_route_button_users)
 
         self.main_progress_bar = QProgressBar()
         self.main_progress_bar.setVisible(False)
@@ -92,6 +98,19 @@ class BestTradeRouteTab(QWidget):
         self.progress_bar.setVisible(False)
         layout.addWidget(self.main_progress_bar)
         layout.addWidget(self.progress_bar)
+
+        self.page_items_combo = QComboBox()
+        self.page_items_combo.addItem("10 maximum results", 10)
+        self.page_items_combo.addItem("20 maximum results", 20)
+        self.page_items_combo.addItem("50 maximum results", 50)
+        self.page_items_combo.addItem("100 maximum results", 100)
+        self.page_items_combo.addItem("500 maximum results", 500)
+        self.page_items_combo.addItem("1000 maximum results", 1000)
+        self.page_items_combo.setCurrentIndex(0)
+        self.page_items_combo.currentIndexChanged.connect(
+            lambda: asyncio.ensure_future(self.update_page_items())
+        )
+        layout.addWidget(self.page_items_combo)
 
         self.trade_route_table = QTableWidget()
         layout.addWidget(self.trade_route_table)
@@ -179,6 +198,9 @@ class BestTradeRouteTab(QWidget):
             logging.error(f"Failed to load destination terminals: {e}")
             QMessageBox.critical(self, "Error", f"Failed to load destination terminals: {e}")
 
+    async def update_page_items(self):
+        self.display_trade_routes(self.current_trades, self.columns, quick=False)
+
     async def find_best_trade_routes_users(self):
         self.logger.log(logging.INFO, "Searching for Best Trade Routes")
         self.trade_route_table.setRowCount(0)  # Clear previous results
@@ -246,8 +268,8 @@ class BestTradeRouteTab(QWidget):
             currentProgress += 1
             self.main_progress_bar.setValue(currentProgress)
 
-            trade_routes = await self.calculate_trade_routes_users(commodities_routes, max_scu, max_investment)
-            self.logger.log(logging.INFO, f"{len(trade_routes)} routes found")
+            self.current_trades = await self.calculate_trade_routes_users(commodities_routes, max_scu, max_investment)
+            self.logger.log(logging.INFO, f"{len(self.current_trades)} routes found")
             currentProgress += 1
             self.main_progress_bar.setValue(currentProgress)
             self.logger.log(logging.INFO, "Finished calculating Best Trade Routes")
@@ -271,7 +293,7 @@ class BestTradeRouteTab(QWidget):
         currentProgress = 0
         self.progress_bar.setValue(currentProgress)
         self.main_progress_bar.setValue(currentProgress)
-        self.main_progress_bar.setMaximum(6)
+        self.main_progress_bar.setMaximum(7)
 
         try:
             # [Recover entry parameters]
@@ -280,6 +302,7 @@ class BestTradeRouteTab(QWidget):
             ignore_stocks = self.ignore_stocks_checkbox.isChecked()
             ignore_demand = self.ignore_demand_checkbox.isChecked()
             filter_public_hangars = self.filter_public_hangars_checkbox.isChecked()
+            filter_space_only = self.filter_space_only_checkbox.isChecked()
 
             if not departure_system_id:
                 QMessageBox.warning(self, "Input Error", "Please Select a Departure System.")
@@ -322,23 +345,32 @@ class BestTradeRouteTab(QWidget):
             self.main_progress_bar.setValue(currentProgress)
 
             # [Recover departure/destination terminals and commodities]
-            departure_terminals = await self.get_terminals(departure_planets, filter_public_hangars)
+            departure_terminals = await self.get_terminals_from_planets(departure_planets,
+                                                                        filter_public_hangars,
+                                                                        filter_space_only)
             self.logger.log(logging.INFO, f"{len(departure_terminals)} Departure Terminals found.")
             currentProgress += 1
             self.main_progress_bar.setValue(currentProgress)
 
-            buy_commodities, sell_commodities = await self.get_trade_routes_commodities(departure_terminals,
-                                                                                        destination_planets,
-                                                                                        filter_public_hangars)
+            buy_commodities = await self.get_buy_commodities_from_terminals(departure_terminals)
+            self.logger.log(logging.INFO, f"{len(buy_commodities)} Buy Commodities found.")
             currentProgress += 1
             self.main_progress_bar.setValue(currentProgress)
 
-            trade_routes = await self.calculate_trade_routes_rework(buy_commodities, sell_commodities,
-                                                                    max_scu, max_investment,
-                                                                    ignore_stocks, ignore_demand)
+            sell_commodities = await self.get_sell_commodities_from_commodities_prices(buy_commodities,
+                                                                                       filter_public_hangars,
+                                                                                       filter_space_only)
+            self.logger.log(logging.INFO, f"{len(sell_commodities)} Sell Commodities found.")
             currentProgress += 1
             self.main_progress_bar.setValue(currentProgress)
-            self.logger.log(logging.INFO, f"Finished calculating Best Trade Routes : {len(trade_routes)} found")
+
+            self.current_trades = await self.calculate_trade_routes_rework(buy_commodities, sell_commodities,
+                                                                           max_scu, max_investment,
+                                                                           ignore_stocks, ignore_demand)
+            self.logger.log(logging.INFO, f"{len(self.current_trades)} Trade routes found.")
+            currentProgress += 1
+            self.main_progress_bar.setValue(currentProgress)
+            self.logger.log(logging.INFO, f"Finished calculating Best Trade Routes : {len(self.current_trades)} found")
         except Exception as e:
             self.logger.log(logging.ERROR, f"An error occurred while finding best trade routes: {e}")
             QMessageBox.critical(self, "Error", f"An error occurred: {e}")
@@ -365,24 +397,32 @@ class BestTradeRouteTab(QWidget):
 
     async def calculate_trade_routes_users(self, commodities_routes, max_scu, max_investment):
         trade_routes = await self.process_trade_route_users(commodities_routes, max_scu, max_investment)
-        self.display_trade_routes(trade_routes, self.columns)
+        self.display_trade_routes(trade_routes, self.columns, quick=False)
         # Allow UI to update during the search
         QApplication.processEvents()
         return trade_routes
 
-    async def get_terminals(self, filtering_planets, filter_public_hangars=False):
+    async def get_terminals_from_planets(self, filtering_planets, filter_public_hangars=False, filter_space_only=False):
         terminals = []
+        universe = len(filtering_planets)
+        self.progress_bar.setMaximum(universe)
+        actionProgress = 0
         # Get all terminals (filter by system/planet) from /terminals
         for planet in filtering_planets:
             returned_terminals = await self.api.fetch_terminals(planet["id_star_system"],
                                                                 planet["id"])
             for terminal in returned_terminals:
-                if not filter_public_hangars or (terminal["city_name"]
-                                                 or terminal["space_station_name"]):
+                if ((not filter_public_hangars
+                     or (terminal["city_name"]
+                         or terminal["space_station_name"]))
+                    and (not filter_space_only
+                         or terminal["space_station_name"])):
                     terminals.append(terminal)
+            actionProgress += 1
+            self.progress_bar.setValue(actionProgress)
         return terminals
 
-    async def get_trade_routes_commodities(self, departure_terminals, destination_planets, filter_public_hangars=False):
+    async def get_buy_commodities_from_terminals(self, departure_terminals):
         buy_commodities = []
         universe = len(departure_terminals)
         self.progress_bar.setMaximum(universe)
@@ -395,29 +435,34 @@ class BestTradeRouteTab(QWidget):
             actionProgress += 1
             self.progress_bar.setValue(actionProgress)
         self.logger.log(logging.INFO, f"{len(buy_commodities)} Buy Commodities found.")
+        return buy_commodities
 
+    async def get_sell_commodities_from_commodities_prices(self,
+                                                           buy_commodities,
+                                                           filter_public_hangars=False,
+                                                           filter_space_only=False):
         grouped_buy_commodities_ids = []
         # Establish a GROUPED list of BUY commodities (by commodity_id)
         grouped_buy_commodities_ids = set(map(lambda x: x["id_commodity"], buy_commodities))
         self.logger.log(logging.INFO, f"{len(grouped_buy_commodities_ids)} Unique Buy Commodities found.")
 
-        arrival_terminals = await self.get_terminals(destination_planets, filter_public_hangars)
-        # Get all arrival terminals (filter by destination system/planet) from /terminals
-        self.logger.log(logging.INFO, f"{len(arrival_terminals)} Arrival Terminals found.")
-
         sell_commodities = []
         universe = len(grouped_buy_commodities_ids)
         self.progress_bar.setMaximum(universe)
         actionProgress = 0
-        # Get all SELL commodities (for each unique BUY commodity, available in arrival_terminals) from /commodities_prices
+        # Get all SELL commodities (for each unique BUY commodity) from /commodities_prices
         for grouped_buy_id in grouped_buy_commodities_ids:
             sell_commodities.extend([commodity for commodity in await self.api.fetch_commodities_by_id(grouped_buy_id)
-                                    if commodity["price_sell"] > 0])
+                                    if commodity["price_sell"] > 0
+                                    and (not filter_public_hangars or
+                                         (commodity["city_name"] or
+                                          commodity["space_station_name"]))
+                                    and (not filter_space_only or
+                                         commodity["space_station_name"])])
             actionProgress += 1
             self.progress_bar.setValue(actionProgress)
         self.logger.log(logging.INFO, f"{len(sell_commodities)} Sell Commodities found.")
-
-        return buy_commodities, sell_commodities
+        return sell_commodities
 
     async def calculate_trade_routes_rework(self, buy_commodities, sell_commodities,
                                             max_scu, max_investment, ignore_stocks,
@@ -444,6 +489,8 @@ class BestTradeRouteTab(QWidget):
                     self.display_trade_routes(trade_routes, self.columns)
                     QApplication.processEvents()
         self.progress_bar.setValue(actionProgress)
+        self.display_trade_routes(trade_routes, self.columns, quick=False)
+        QApplication.processEvents()
         return trade_routes
 
     async def process_trade_route_users(self, commodities_routes, max_scu, max_investment):
@@ -467,6 +514,10 @@ class BestTradeRouteTab(QWidget):
                                                                       commodity_route.get("id_planet_destination"),
                                                                       commodity_route.get("id_terminal_destination"))
                 if not terminal_destination[0].get("city_name"):
+                    continue
+            if self.filter_space_only_checkbox.isChecked():
+                if not commodity_route.get("is_space_station_origin", 0)\
+                   or not commodity_route.get("is_space_station_destination", 0):
                     continue
 
             available_scu = max_scu if self.ignore_stocks_checkbox.isChecked() else commodity_route.get("scu_origin", 0)
@@ -571,10 +622,11 @@ class BestTradeRouteTab(QWidget):
         }
         return route
 
-    def display_trade_routes(self, trade_routes, columns):
+    def display_trade_routes(self, trade_routes, columns, quick=True):
+        nb_items = 5 if quick else self.page_items_combo.currentData()
         self.trade_route_table.setRowCount(0)  # Clear the table before adding sorted results
         trade_routes.sort(key=lambda x: float(x["total_margin"].split()[0]), reverse=True)
-        for i, route in enumerate(trade_routes[:10]):
+        for i, route in enumerate(trade_routes[:nb_items]):
             self.trade_route_table.insertRow(i)
             for j, value in enumerate(route.values()):
                 if j < len(columns) - 1:
