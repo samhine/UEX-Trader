@@ -79,12 +79,12 @@ class TradeTab(QWidget):
         main_layout.addWidget(sell_price_label)
         main_layout.addWidget(self.sell_price_input)
 
-        self.buy_button = QPushButton("Buy Commodity")
+        self.buy_button = QPushButton("Declare Purchase on UEXcorp")
         self.buy_button.setEnabled(False)
         self.buy_button.clicked.connect(lambda: asyncio.ensure_future(self.buy_commodity()))
         main_layout.addWidget(self.buy_button)
 
-        self.sell_button = QPushButton("Sell Commodity")
+        self.sell_button = QPushButton("Declare Sale on UEXcorp")
         self.sell_button.setEnabled(False)
         self.sell_button.clicked.connect(lambda: asyncio.ensure_future(self.sell_commodity()))
         main_layout.addWidget(self.sell_button)
