@@ -23,7 +23,7 @@ class TranslationManager:
             ]
 
     def load_translations(self):
-        self.translation_config.read(self.translation_file)
+        self.translation_config.read(self.translation_file, encoding="UTF-8")
 
     def get_available_lang(self):
         return self.available_langs

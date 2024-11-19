@@ -18,37 +18,37 @@ class UexcorpTrader(QWidget):
         self.translation_manager = TranslationManager()
         self.initUI(self.config_manager.get_lang())
         self.apply_appearance_mode()
-        self.apply_lang(self.config_manager.get_lang())
 
     def initUI(self, lang="en"):
         self.setWindowTitle(self.translation_manager.get_translation("window_title", lang))
         self.setWindowIcon(QIcon("resources/UEXTrader_icon_resized.png"))
 
-        tabs = QTabWidget()
+        if hasattr(self, "tabs") and hasattr(self, "main_layout"):
+            self.main_layout.removeWidget(self.tabs)
+        self.tabs = QTabWidget()
         self.configTab = ConfigTab(self)
         self.tradeTab = TradeTab(self)
         self.tradeRouteTab = TradeRouteTab(self)
         self.bestTradeRouteTab = BestTradeRouteTab(self)
-        tabs.addTab(self.configTab, self.translation_manager.get_translation("config_tab", lang))
-        tabs.addTab(self.tradeTab, self.translation_manager.get_translation("trade_tab", lang))
-        tabs.addTab(self.tradeRouteTab, self.translation_manager.get_translation("trade_route_tab", lang))
-        tabs.addTab(self.bestTradeRouteTab, self.translation_manager.get_translation("best_trade_route_tab", lang))
+        self.tabs.addTab(self.configTab, self.translation_manager.get_translation("config_tab", lang))
+        self.tabs.addTab(self.tradeTab, self.translation_manager.get_translation("trade_tab", lang))
+        self.tabs.addTab(self.tradeRouteTab, self.translation_manager.get_translation("trade_route_tab", lang))
+        self.tabs.addTab(self.bestTradeRouteTab, self.translation_manager.get_translation("best_trade_route_tab", lang))
 
-        main_layout = QVBoxLayout()
-        main_layout.addWidget(tabs)
-        self.setLayout(main_layout)
+        if not hasattr(self, "main_layout"):
+            self.main_layout = QVBoxLayout()
+        self.main_layout.addWidget(self.tabs)
+        if not self.layout():
+            self.setLayout(self.main_layout)
 
         # Restore window size
         width, height = self.config_manager.get_window_size()
         self.resize(width, height)
 
-    def apply_lang(self, lang="en"):
-        self.initUI(lang)
-
     def apply_appearance_mode(self, appearance_mode=None):
         if not appearance_mode:
             appearance_mode = self.config_manager.get_appearance_mode()
-        if appearance_mode == self.translation_manager.get_translation("appearance_dark", self.config_manager.get_lang()):
+        if appearance_mode == "Dark":
             self.app.setStyle(QStyleFactory.create("Fusion"))
             dark_palette = self.create_dark_palette()
             self.app.setPalette(dark_palette)

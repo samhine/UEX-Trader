@@ -31,6 +31,7 @@ class ConfigManager:
                 self.api = API._instance
 
     def load_config(self):
+        # TODO - Check if configuration is valid
         self.config.read(self.config_file)
 
     def save_config(self):
