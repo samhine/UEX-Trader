@@ -453,7 +453,8 @@ class TradeRouteTab(QWidget):
                     self.trade_route_table.setCellWidget(i, j, action_widget)
         if len(trade_routes) == 0:
             self.trade_route_table.insertRow(0)
-            item = QTableWidgetItem(self.translation_manager.get_translation("no_results_found", self.config_manager.get_lang()))
+            item = QTableWidgetItem(self.translation_manager.get_translation("no_results_found",
+                                                                             self.config_manager.get_lang()))
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)  # Make the item non-editable
             self.trade_route_table.setItem(0, 0, item)
         self.trade_route_table.resizeColumnsToContents()
