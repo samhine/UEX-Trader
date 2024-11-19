@@ -1,5 +1,6 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QComboBox
 from config_manager import ConfigManager
+from translation_manager import TranslationManager
 
 
 class ConfigTab(QWidget):
@@ -11,6 +12,10 @@ class ConfigTab(QWidget):
             self.config_manager = ConfigManager()
         else:
             self.config_manager = ConfigManager._instance
+        if TranslationManager._instance is None:
+            self.translation_manager = TranslationManager()
+        else:
+            self.translation_manager = TranslationManager._instance
         self.initUI()
 
     def initUI(self):
@@ -56,6 +61,14 @@ class ConfigTab(QWidget):
         self.appearance_input.setCurrentText(self.config_manager.get_appearance_mode())
         self.appearance_input.currentIndexChanged.connect(self.update_appearance_mode)
 
+        self.language_label = QLabel("Language:")
+        self.language_input = QComboBox()
+        langs = self.translation_manager.get_available_lang()
+        for lang in langs:
+            self.language_input.addItem(self.translation_manager.get_translation("current_language", lang), lang)
+        self.language_input.setCurrentIndex(self.language_input.findData(self.config_manager.get_lang()))
+        self.language_input.currentIndexChanged.connect(self.update_lang)
+
         layout.addWidget(self.api_key_label)
         layout.addWidget(self.api_key_input)
         layout.addWidget(self.show_api_key_button)
@@ -68,6 +81,8 @@ class ConfigTab(QWidget):
         layout.addWidget(self.debug_input)
         layout.addWidget(self.appearance_label)
         layout.addWidget(self.appearance_input)
+        layout.addWidget(self.language_label)
+        layout.addWidget(self.language_input)
 
         self.setLayout(layout)
 
@@ -87,7 +102,11 @@ class ConfigTab(QWidget):
         new_appearance = self.appearance_input.currentText()
         self.config_manager.set_appearance_mode(new_appearance)
         self.main_widget.apply_appearance_mode(new_appearance)
-        self.config_manager.set_appearance_mode(self.appearance_input.currentText())
+
+    def update_lang(self):
+        new_lang = self.language_input.currentData()
+        self.config_manager.set_lang(new_lang)
+        self.main_widget.apply_lang(new_lang)
 
     def update_is_production(self):
         self.config_manager.set_is_production(self.is_production_input.currentText() == "True")

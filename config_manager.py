@@ -99,3 +99,13 @@ class ConfigManager:
         width = int(self.config.get("GUI", "window_width", fallback="800"))
         height = int(self.config.get("GUI", "window_height", fallback="600"))
         return width, height
+
+    def get_lang(self):
+        return self.config.get("SETTINGS", "language", fallback="en")
+
+    def set_lang(self, lang):
+        # TODO - Check if lang is part of the current language list
+        if "SETTINGS" not in self.config:
+            self.config["SETTINGS"] = {}
+        self.config["SETTINGS"]["language"] = lang
+        self.save_config()
