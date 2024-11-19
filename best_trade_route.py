@@ -11,6 +11,7 @@ from api import API
 from config_manager import ConfigManager
 from functools import partial
 from trade_tab import TradeTab
+from translation_manager import TranslationManager
 
 
 class BestTradeRouteTab(QWidget):
@@ -27,68 +28,129 @@ class BestTradeRouteTab(QWidget):
             self.api = API(self.config_manager)
         else:
             self.api = API._instance
+        if TranslationManager._instance is None:
+            self.translation_manager = TranslationManager()
+        else:
+            self.translation_manager = TranslationManager._instance
         self.logger = logging.getLogger(__name__)
         self.terminals = []
         self.current_trades = []
         self.initUI()
         asyncio.ensure_future(self.load_systems())
         self.columns = [
-            "Departure", "Destination", "Commodity", "Buy SCU", "Buy Price",
-            "Sell Price", "Investment", "Unit Margin", "Total Margin",
-            "Departure SCU Available", "Arrival Demand SCU", "Profit Margin", "Actions"
+            self.translation_manager.get_translation("trade_columns_departure", self.config_manager.get_lang()),
+            self.translation_manager.get_translation("trade_columns_destination", self.config_manager.get_lang()),
+            self.translation_manager.get_translation("trade_columns_commodity", self.config_manager.get_lang()),
+            self.translation_manager.get_translation("trade_columns_buy_scu", self.config_manager.get_lang()),
+            self.translation_manager.get_translation("trade_columns_buy_price", self.config_manager.get_lang()),
+            self.translation_manager.get_translation("trade_columns_sell_price", self.config_manager.get_lang()),
+            self.translation_manager.get_translation("trade_columns_investment", self.config_manager.get_lang()),
+            self.translation_manager.get_translation("trade_columns_unit_margin", self.config_manager.get_lang()),
+            self.translation_manager.get_translation("trade_columns_total_margin", self.config_manager.get_lang()),
+            self.translation_manager.get_translation("trade_columns_departure_scu_available", self.config_manager.get_lang()),
+            self.translation_manager.get_translation("trade_columns_arrival_demand_scu", self.config_manager.get_lang()),
+            self.translation_manager.get_translation("trade_columns_profit_margin", self.config_manager.get_lang()),
+            self.translation_manager.get_translation("trade_columns_actions", self.config_manager.get_lang())
         ]
 
     def initUI(self):
         layout = QVBoxLayout()
         self.max_scu_input = QLineEdit()
-        self.max_scu_input.setPlaceholderText("Enter Max SCU")
-        layout.addWidget(QLabel("Max SCU:"))
+        self.max_scu_input.setPlaceholderText(self.translation_manager.get_translation("enter",
+                                                                                       self.config_manager.get_lang())
+                                              + " " + self.translation_manager.get_translation("maximum",
+                                                                                               self.config_manager.get_lang())
+                                              + " " + self.translation_manager.get_translation("scu",
+                                                                                               self.config_manager.get_lang()))
+        layout.addWidget(QLabel(self.translation_manager.get_translation("maximum", self.config_manager.get_lang())
+                                + " " + self.translation_manager.get_translation("scu", self.config_manager.get_lang())
+                                + ":"))
         layout.addWidget(self.max_scu_input)
         self.max_investment_input = QLineEdit()
-        self.max_investment_input.setPlaceholderText("Enter Max Investment (UEC)")
-        layout.addWidget(QLabel("Max Investment (UEC):"))
+        self.max_investment_input.setPlaceholderText(self.translation_manager.get_translation("enter",
+                                                                                              self.config_manager.get_lang())
+                                                     + " "
+                                                     + self.translation_manager.get_translation("maximum",
+                                                                                                self.config_manager.get_lang())
+                                                     + " "
+                                                     + self.translation_manager.get_translation("investment",
+                                                                                                self.config_manager.get_lang())
+                                                     + " ("
+                                                     + self.translation_manager.get_translation("uec",
+                                                                                                self.config_manager.get_lang())
+                                                     + ")")
+        layout.addWidget(QLabel(self.translation_manager.get_translation("maximum",
+                                                                         self.config_manager.get_lang())
+                                + " "
+                                + self.translation_manager.get_translation("investment",
+                                                                           self.config_manager.get_lang())
+                                + " ("
+                                + self.translation_manager.get_translation("uec",
+                                                                           self.config_manager.get_lang())
+                                + "):"))
         layout.addWidget(self.max_investment_input)
         self.departure_system_combo = QComboBox()
         self.departure_system_combo.currentIndexChanged.connect(
             lambda: asyncio.ensure_future(self.update_departure_planets())
         )
-        layout.addWidget(QLabel("Departure System:"))
+        layout.addWidget(QLabel(self.translation_manager.get_translation("departure_system",
+                                                                         self.config_manager.get_lang())
+                                + ":"))
         layout.addWidget(self.departure_system_combo)
         self.departure_planet_combo = QComboBox()
-        self.departure_planet_combo.addItem("All Planets")
+        self.departure_planet_combo.addItem(self.translation_manager.get_translation("all_planets",
+                                                                                     self.config_manager.get_lang()),
+                                            "all_planets")
         self.departure_planet_combo.currentIndexChanged.connect(
             lambda: asyncio.ensure_future(self.update_departure_terminals())
         )
-        layout.addWidget(QLabel("Departure Planet:"))
+        layout.addWidget(QLabel(self.translation_manager.get_translation("departure_planet",
+                                                                         self.config_manager.get_lang())
+                                + ":"))
         layout.addWidget(self.departure_planet_combo)
         self.destination_system_combo = QComboBox()
-        self.destination_system_combo.addItem("All Systems")
+        self.destination_system_combo.addItem(self.translation_manager.get_translation("all_systems",
+                                                                                       self.config_manager.get_lang()),
+                                              "all_systems")
         self.destination_system_combo.currentIndexChanged.connect(
             lambda: asyncio.ensure_future(self.update_destination_planets())
         )
-        layout.addWidget(QLabel("Destination System:"))
+        layout.addWidget(QLabel(self.translation_manager.get_translation("destination_system",
+                                                                         self.config_manager.get_lang())
+                                + ":"))
         layout.addWidget(self.destination_system_combo)
         self.destination_planet_combo = QComboBox()
-        self.destination_planet_combo.addItem("All Planets")
+        self.destination_planet_combo.addItem(self.translation_manager.get_translation("all_planets",
+                                                                                       self.config_manager.get_lang()),
+                                              "all_planets")
         self.destination_planet_combo.currentIndexChanged.connect(
             lambda: asyncio.ensure_future(self.update_destination_terminals())
         )
-        layout.addWidget(QLabel("Destination Planet:"))
+        layout.addWidget(QLabel(self.translation_manager.get_translation("destination_planet",
+                                                                         self.config_manager.get_lang())
+                                + ":"))
         layout.addWidget(self.destination_planet_combo)
-        self.ignore_stocks_checkbox = QCheckBox("Ignore Stocks")
-        self.ignore_demand_checkbox = QCheckBox("Ignore Demand")
+        self.ignore_stocks_checkbox = QCheckBox(self.translation_manager.get_translation("ignore_stocks",
+                                                                                         self.config_manager.get_lang()))
+        self.ignore_demand_checkbox = QCheckBox(self.translation_manager.get_translation("ignore_demand",
+                                                                                         self.config_manager.get_lang()))
         layout.addWidget(self.ignore_stocks_checkbox)
         layout.addWidget(self.ignore_demand_checkbox)
-        self.filter_public_hangars_checkbox = QCheckBox("No Public Hangars")
+        self.filter_public_hangars_checkbox = QCheckBox(self.translation_manager.get_translation("no_public_hangars",
+                                                                                                 self.config_manager.
+                                                                                                 get_lang()))
         layout.addWidget(self.filter_public_hangars_checkbox)
-        self.filter_space_only_checkbox = QCheckBox("Space Only")
+        self.filter_space_only_checkbox = QCheckBox(self.translation_manager.get_translation("space_only",
+                                                                                             self.config_manager.get_lang()))
         layout.addWidget(self.filter_space_only_checkbox)
 
-        self.find_route_button_rework = QPushButton("Find Best Trade Routes")
+        self.find_route_button_rework = QPushButton(self.translation_manager.get_translation("find_best_trade_routes",
+                                                                                             self.config_manager.get_lang()))
         self.find_route_button_rework.clicked.connect(lambda: asyncio.ensure_future(self.find_best_trade_routes_rework()))
         layout.addWidget(self.find_route_button_rework)
 
-        self.find_route_button_users = QPushButton("Find Best Trade Routes (from User Trades)")
+        self.find_route_button_users = QPushButton(self.translation_manager.get_translation("find_best_trade_from_user",
+                                                                                            self.config_manager.get_lang()))
         self.find_route_button_users.clicked.connect(lambda: asyncio.ensure_future(self.find_best_trade_routes_users()))
         layout.addWidget(self.find_route_button_users)
 
@@ -100,12 +162,18 @@ class BestTradeRouteTab(QWidget):
         layout.addWidget(self.progress_bar)
 
         self.page_items_combo = QComboBox()
-        self.page_items_combo.addItem("10 maximum results", 10)
-        self.page_items_combo.addItem("20 maximum results", 20)
-        self.page_items_combo.addItem("50 maximum results", 50)
-        self.page_items_combo.addItem("100 maximum results", 100)
-        self.page_items_combo.addItem("500 maximum results", 500)
-        self.page_items_combo.addItem("1000 maximum results", 1000)
+        self.page_items_combo.addItem("10 " + self.translation_manager.get_translation("maximum_results",
+                                                                                       self.config_manager.get_lang()), 10)
+        self.page_items_combo.addItem("20 " + self.translation_manager.get_translation("maximum_results",
+                                                                                       self.config_manager.get_lang()), 20)
+        self.page_items_combo.addItem("50 " + self.translation_manager.get_translation("maximum_results",
+                                                                                       self.config_manager.get_lang()), 50)
+        self.page_items_combo.addItem("100 " + self.translation_manager.get_translation("maximum_results",
+                                                                                        self.config_manager.get_lang()), 100)
+        self.page_items_combo.addItem("500 " + self.translation_manager.get_translation("maximum_results",
+                                                                                        self.config_manager.get_lang()), 500)
+        self.page_items_combo.addItem("1000 " + self.translation_manager.get_translation("maximum_results",
+                                                                                         self.config_manager.get_lang()), 1000)
         self.page_items_combo.setCurrentIndex(0)
         self.page_items_combo.currentIndexChanged.connect(
             lambda: asyncio.ensure_future(self.update_page_items())
@@ -126,11 +194,17 @@ class BestTradeRouteTab(QWidget):
             logging.info("Systems loaded successfully.")
         except Exception as e:
             logging.error(f"Failed to load systems: {e}")
-            QMessageBox.critical(self, "Error", f"Failed to load systems: {e}")
+            QMessageBox.critical(self, self.translation_manager.get_translation("error_error",
+                                                                                self.config_manager.get_lang()),
+                                 self.translation_manager.get_translation("error_failed_to_load_systems",
+                                                                          self.config_manager.get_lang())
+                                 + f": {e}")
 
     async def update_departure_planets(self):
         self.departure_planet_combo.clear()
-        self.departure_planet_combo.addItem("All Planets")
+        self.departure_planet_combo.addItem(self.translation_manager.get_translation("all_planets",
+                                                                                     self.config_manager.get_lang()),
+                                            "all_planets")
         self.terminals = []
         system_id = self.departure_system_combo.currentData()
         if not system_id:
@@ -142,16 +216,20 @@ class BestTradeRouteTab(QWidget):
             logging.info("Departure planets loaded successfully.")
         except Exception as e:
             logging.error(f"Failed to load departure planets: {e}")
-            QMessageBox.critical(self, "Error", f"Failed to load departure planets: {e}")
+            QMessageBox.critical(self, self.translation_manager.get_translation("error_error",
+                                                                                self.config_manager.get_lang()),
+                                 self.translation_manager.get_translation("error_failed_to_load_departure_planets",
+                                                                          self.config_manager.get_lang())
+                                 + f": {e}")
 
     async def update_departure_terminals(self):
         self.terminals = []
         planet_id = self.departure_planet_combo.currentData()
-        if not planet_id and self.departure_planet_combo.currentText() != "All Planets":
+        if not planet_id and self.departure_planet_combo.currentData() != "all_planets":
             return
         try:
             params = {'id_star_system': self.departure_system_combo.currentData()}
-            if self.departure_planet_combo.currentText() != "All Planets":
+            if self.departure_planet_combo.currentData() != "all_planets":
                 params['id_planet'] = planet_id
             terminals = await self.api.fetch_data("/terminals", params=params)
             self.terminals = [terminal for terminal in terminals.get("data", [])
@@ -159,17 +237,23 @@ class BestTradeRouteTab(QWidget):
             logging.info("Departure terminals loaded successfully.")
         except Exception as e:
             logging.error(f"Failed to load departure terminals: {e}")
-            QMessageBox.critical(self, "Error", f"Failed to load departure terminals: {e}")
+            QMessageBox.critical(self, self.translation_manager.get_translation("error_error",
+                                                                                self.config_manager.get_lang()),
+                                 self.translation_manager.get_translation("error_failed_to_load_departure_terminals",
+                                                                          self.config_manager.get_lang())
+                                 + f": {e}")
 
     async def update_destination_planets(self):
         self.destination_planet_combo.clear()
-        self.destination_planet_combo.addItem("All Planets")
+        self.destination_planet_combo.addItem(self.translation_manager.get_translation("all_planets",
+                                                                                       self.config_manager.get_lang()),
+                                              "all_planets")
         system_id = self.destination_system_combo.currentData()
-        if not system_id and self.destination_system_combo.currentText() != "All Systems":
+        if not system_id and self.destination_system_combo.currentData() != "all_systems":
             return
         try:
             params = {}
-            if self.destination_system_combo.currentText() != "All Systems":
+            if self.destination_system_combo.currentData() != "all_systems":
                 params['id_star_system'] = system_id
             planets = await self.api.fetch_data("/planets", params=params)
             for planet in planets.get("data", []):
@@ -177,18 +261,22 @@ class BestTradeRouteTab(QWidget):
             logging.info("Destination planets loaded successfully.")
         except Exception as e:
             logging.error(f"Failed to load destination planets: {e}")
-            QMessageBox.critical(self, "Error", f"Failed to load destination planets: {e}")
+            QMessageBox.critical(self, self.translation_manager.get_translation("error_error",
+                                                                                self.config_manager.get_lang()),
+                                 self.translation_manager.get_translation("error_failed_to_load_destination_planets",
+                                                                          self.config_manager.get_lang())
+                                 + f": {e}")
 
     async def update_destination_terminals(self):
         self.destination_terminals = []
         planet_id = self.destination_planet_combo.currentData()
-        if not planet_id and self.destination_planet_combo.currentText() != "All Planets":
+        if not planet_id and self.destination_planet_combo.currentData() != "all_planets":
             return
         try:
             params = {}
-            if self.destination_system_combo.currentText() != "All Systems":
+            if self.destination_system_combo.currentData() != "all_systems":
                 params['id_star_system'] = self.destination_system_combo.currentData()
-            if self.destination_planet_combo.currentText() != "All Planets":
+            if self.destination_planet_combo.currentData() != "all_planets":
                 params['id_planet'] = planet_id
             terminals = await self.api.fetch_data("/terminals", params=params)
             self.destination_terminals = [terminal for terminal in terminals.get("data", [])
@@ -196,7 +284,11 @@ class BestTradeRouteTab(QWidget):
             logging.info("Destination terminals loaded successfully.")
         except Exception as e:
             logging.error(f"Failed to load destination terminals: {e}")
-            QMessageBox.critical(self, "Error", f"Failed to load destination terminals: {e}")
+            QMessageBox.critical(self, self.translation_manager.get_translation("error_error",
+                                                                                self.config_manager.get_lang()),
+                                 self.translation_manager.get_translation("error_failed_to_load_destination_terminals",
+                                                                          self.config_manager.get_lang())
+                                 + f": {e}")
 
     async def update_page_items(self):
         self.display_trade_routes(self.current_trades, self.columns, quick=False)
@@ -219,7 +311,10 @@ class BestTradeRouteTab(QWidget):
             departure_system_id, departure_planet_id, destination_system_id, destination_planet_id = self.get_selected_ids()
 
             if not departure_system_id:
-                QMessageBox.warning(self, "Input Error", "Please Select a Departure System.")
+                QMessageBox.warning(self, self.translation_manager.get_translation("error_input_error",
+                                                                                   self.config_manager.get_lang()),
+                                    self.translation_manager.get_translation("error_input_select_ds",
+                                                                             self.config_manager.get_lang()))
                 return
 
             departure_planets = []
@@ -276,7 +371,11 @@ class BestTradeRouteTab(QWidget):
 
         except Exception as e:
             self.logger.log(logging.ERROR, f"An error occurred while finding best trade routes: {e}")
-            QMessageBox.critical(self, "Error", f"An error occurred: {e}")
+            QMessageBox.critical(self, self.translation_manager.get_translation("error_error",
+                                                                                self.config_manager.get_lang()),
+                                 self.translation_manager.get_translation("error_generic",
+                                                                          self.config_manager.get_lang())
+                                 + f": {e}")
         finally:
             self.main_widget.set_gui_enabled(True)
             self.main_progress_bar.setVisible(False)
@@ -305,7 +404,10 @@ class BestTradeRouteTab(QWidget):
             filter_space_only = self.filter_space_only_checkbox.isChecked()
 
             if not departure_system_id:
-                QMessageBox.warning(self, "Input Error", "Please Select a Departure System.")
+                QMessageBox.warning(self, self.translation_manager.get_translation("error_input_error",
+                                                                                   self.config_manager.get_lang()),
+                                    self.translation_manager.get_translation("error_input_select_ds",
+                                                                             self.config_manager.get_lang()))
                 return
 
             # [Recover departure/destination planets]
@@ -373,7 +475,11 @@ class BestTradeRouteTab(QWidget):
             self.logger.log(logging.INFO, f"Finished calculating Best Trade Routes : {len(self.current_trades)} found")
         except Exception as e:
             self.logger.log(logging.ERROR, f"An error occurred while finding best trade routes: {e}")
-            QMessageBox.critical(self, "Error", f"An error occurred: {e}")
+            QMessageBox.critical(self, self.translation_manager.get_translation("error_error",
+                                                                                self.config_manager.get_lang()),
+                                 self.translation_manager.get_translation("error_generic",
+                                                                          self.config_manager.get_lang())
+                                 + f": {e}")
         finally:
             self.main_widget.set_gui_enabled(True)
             self.progress_bar.setVisible(False)
@@ -387,11 +493,11 @@ class BestTradeRouteTab(QWidget):
     def get_selected_ids(self):
         departure_system_id = self.departure_system_combo.currentData()
         departure_planet_id = self.departure_planet_combo.currentData()
-        if self.departure_planet_combo.currentText() == "All Planets":
+        if self.departure_planet_combo.currentData() == "all_planets":
             departure_planet_id = None
         destination_system_id = self.destination_system_combo.currentData()
         destination_planet_id = self.destination_planet_combo.currentData()
-        if self.destination_planet_combo.currentText() == "All Planets":
+        if self.destination_planet_combo.currentData() == "all_planets":
             destination_planet_id = None
         return departure_system_id, departure_planet_id, destination_system_id, destination_planet_id
 
@@ -542,14 +648,22 @@ class BestTradeRouteTab(QWidget):
                 "departure": commodity_route["origin_terminal_name"],
                 "destination": commodity_route["destination_terminal_name"],
                 "commodity": commodity_route["commodity_name"],
-                "buy_scu": f"{max_buyable_scu} SCU",
-                "buy_price": f"{price_buy} UEC",
-                "sell_price": f"{price_sell} UEC",
-                "investment": f"{investment} UEC",
-                "unit_margin": f"{unit_margin} UEC",
-                "total_margin": f"{total_margin} UEC",
-                "departure_scu_available": f"{commodity_route.get('scu_origin', 0)} SCU",
-                "arrival_demand_scu": f"{commodity_route.get('scu_destination', 0)} SCU",
+                "buy_scu": str(max_buyable_scu) + " "
+                + self.translation_manager.get_translation("scu", self.config_manager.get_lang()),
+                "buy_price": str(price_buy) + " "
+                + self.translation_manager.get_translation("uec", self.config_manager.get_lang()),
+                "sell_price": str(price_sell) + " "
+                + self.translation_manager.get_translation("uec", self.config_manager.get_lang()),
+                "investment": str(investment) + " "
+                + self.translation_manager.get_translation("uec", self.config_manager.get_lang()),
+                "unit_margin": str(unit_margin) + " "
+                + self.translation_manager.get_translation("uec", self.config_manager.get_lang()),
+                "total_margin": str(total_margin) + " "
+                + self.translation_manager.get_translation("uec", self.config_manager.get_lang()),
+                "departure_scu_available": str(commodity_route.get('scu_origin', 0)) + " "
+                + self.translation_manager.get_translation("scu", self.config_manager.get_lang()),
+                "arrival_demand_scu": str(commodity_route.get('scu_destination', 0)) + " "
+                + self.translation_manager.get_translation("scu", self.config_manager.get_lang()),
                 "profit_margin": f"{round(profit_margin * 100)}%",
                 "departure_terminal_id": commodity_route["id_terminal_origin"],
                 "arrival_terminal_id": commodity_route["id_terminal_destination"],
@@ -602,14 +716,22 @@ class BestTradeRouteTab(QWidget):
             "departure": buy_commodity["terminal_name"],
             "destination": sell_commodity["terminal_name"],
             "commodity": buy_commodity.get("commodity_name"),
-            "buy_scu": f"{max_buyable_scu} SCU",
-            "buy_price": f"{price_buy} UEC",
-            "sell_price": f"{price_sell} UEC",
-            "investment": f"{investment} UEC",
-            "unit_margin": f"{unit_margin} UEC",
-            "total_margin": f"{total_margin} UEC",
-            "departure_scu_available": f"{buy_commodity.get('scu_buy', 0)} SCU",
-            "arrival_demand_scu": f"{scu_sell_stock - scu_sell_users} SCU",
+            "buy_scu": str(max_buyable_scu) + " "
+            + self.translation_manager.get_translation("scu", self.config_manager.get_lang()),
+            "buy_price": str(price_buy) + " "
+            + self.translation_manager.get_translation("uec", self.config_manager.get_lang()),
+            "sell_price": str(price_sell) + " "
+            + self.translation_manager.get_translation("uec", self.config_manager.get_lang()),
+            "investment": str(investment) + " "
+            + self.translation_manager.get_translation("uec", self.config_manager.get_lang()),
+            "unit_margin": str(unit_margin) + " "
+            + self.translation_manager.get_translation("uec", self.config_manager.get_lang()),
+            "total_margin": str(total_margin) + " "
+            + self.translation_manager.get_translation("uec", self.config_manager.get_lang()),
+            "departure_scu_available": str(buy_commodity.get('scu_buy', 0)) + " "
+            + self.translation_manager.get_translation("scu", self.config_manager.get_lang()),
+            "arrival_demand_scu": str(scu_sell_stock - scu_sell_users) + " "
+            + self.translation_manager.get_translation("scu", self.config_manager.get_lang()),
             "profit_margin": f"{round(profit_margin * 100)}%",
             "departure_terminal_id": buy_commodity["id_terminal"],
             "arrival_terminal_id": sell_commodity.get("id_terminal"),
@@ -641,9 +763,11 @@ class BestTradeRouteTab(QWidget):
 
     def add_action_buttons(self, i, j, trade_route):
         action_layout = QHBoxLayout()
-        buy_button = QPushButton("Select to Buy")
+        buy_button = QPushButton(self.translation_manager.get_translation("select_to_buy",
+                                                                          self.config_manager.get_lang()))
         buy_button.clicked.connect(partial(self.select_to_buy, trade_route))
-        sell_button = QPushButton("Select to Sell")
+        sell_button = QPushButton(self.translation_manager.get_translation("select_to_sell",
+                                                                           self.config_manager.get_lang()))
         sell_button.clicked.connect(partial(self.select_to_sell, trade_route))
         action_layout.addWidget(buy_button)
         action_layout.addWidget(sell_button)
@@ -658,7 +782,10 @@ class BestTradeRouteTab(QWidget):
             self.main_widget.loop.create_task(trade_tab.select_trade_route(trade_route, is_buy=True))
         else:
             self.logger.log(logging.ERROR, "An error occurred while selecting trade route")
-            QMessageBox.critical(self, "Error", "An error occurred")
+            QMessageBox.critical(self, self.translation_manager.get_translation("error_error",
+                                                                                self.config_manager.get_lang()),
+                                 self.translation_manager.get_translation("error_generic",
+                                                                          self.config_manager.get_lang()))
 
     def select_to_sell(self, trade_route):
         self.logger.log(logging.INFO, "Selected route to sell")
@@ -667,7 +794,10 @@ class BestTradeRouteTab(QWidget):
             self.main_widget.loop.create_task(trade_tab.select_trade_route(trade_route, is_buy=False))
         else:
             self.logger.log(logging.ERROR, "An error occurred while selecting trade route")
-            QMessageBox.critical(self, "Error", "An error occurred")
+            QMessageBox.critical(self, self.translation_manager.get_translation("error_error",
+                                                                                self.config_manager.get_lang()),
+                                 self.translation_manager.get_translation("error_generic",
+                                                                          self.config_manager.get_lang()))
 
     def set_gui_enabled(self, enabled):
         for input in self.findChildren(QLineEdit):
