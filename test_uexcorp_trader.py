@@ -4,7 +4,7 @@ from PyQt5.QtGui import QColor
 
 
 def test_uexcorp_trader_init(trader, qtbot):
-    assert trader.windowTitle() == "UEXcorp Trader"
+    assert trader.windowTitle() == "UEX-Trader"
     assert not trader.windowIcon().isNull()
     assert trader.config_manager is not None
     assert trader.layout().count() > 0
