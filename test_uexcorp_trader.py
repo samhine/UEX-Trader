@@ -13,9 +13,9 @@ async def test_uexcorp_trader_init(trader):
 
 @pytest.mark.asyncio
 async def test_uexcorp_trader_apply_appearance_mode(trader, qapp):
-    trader.apply_appearance_mode("Dark")
+    await trader.apply_appearance_mode("Dark")
     assert qapp.palette().color(trader.create_dark_palette().Window) == QColor(53, 53, 53)
-    trader.apply_appearance_mode("Light")
+    await trader.apply_appearance_mode("Light")
     assert qapp.palette().color(trader.create_dark_palette().Window) != QColor(53, 53, 53)
 
 

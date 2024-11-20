@@ -5,24 +5,45 @@ import asyncio
 
 
 class ConfigTab(QWidget):
+    _lock = asyncio.Lock()
+    _initialized = asyncio.Event()
+
     def __init__(self, main_widget):
         super().__init__()
         self.main_widget = main_widget
-        # Initial the ConfigManager instance only once
-        if ConfigManager._instance is None:
-            self.config_manager = ConfigManager()
-            asyncio.get_event_loop().run_until_complete(self.config_manager.initialize())
-        else:
-            self.config_manager = ConfigManager._instance
-        # Initialize the TranslationManager instance only once
-        if TranslationManager._instance is None:
-            self.translation_manager = TranslationManager()
-        else:
-            self.translation_manager = TranslationManager._instance
-        self.initUI()
+        self.config_manager = None
+        self.translation_manager = None
+        self.boxlayout = None
 
-    def initUI(self):
-        layout = QVBoxLayout()
+    async def initialize(self):
+        async with self._lock:
+            if self.config_manager is None or self.translation_manager is None or self.boxlayout is None:
+                # Initial the ConfigManager instance only once
+                if ConfigManager._instance is None:
+                    self.config_manager = ConfigManager()
+                    await self.config_manager.initialize()
+                else:
+                    self.config_manager = ConfigManager._instance
+                # Initialize the TranslationManager instance only once
+                if TranslationManager._instance is None:
+                    self.translation_manager = TranslationManager()
+                    await self.translation_manager.initialize()
+                else:
+                    self.translation_manager = TranslationManager._instance
+                await self.initUI()
+                self._initialized.set()
+
+    async def ensure_initialized(self):
+        if not self._initialized.is_set():
+            await self.initialize()
+        await self._initialized.wait()
+
+    async def __aenter__(self):
+        await self.ensure_initialized()
+        return self
+
+    async def initUI(self):
+        self.boxlayout = QVBoxLayout()
 
         self.api_key_label = QLabel(self.translation_manager.get_translation("config_uexcorp_apikey",
                                                                              self.config_manager.get_lang())+":")
@@ -82,22 +103,22 @@ class ConfigTab(QWidget):
         self.language_input.setCurrentIndex(self.language_input.findData(self.config_manager.get_lang()))
         self.language_input.currentIndexChanged.connect(self.update_lang)
 
-        layout.addWidget(self.api_key_label)
-        layout.addWidget(self.api_key_input)
-        layout.addWidget(self.show_api_key_button)
-        layout.addWidget(self.secret_key_label)
-        layout.addWidget(self.secret_key_input)
-        layout.addWidget(self.show_secret_key_button)
-        layout.addWidget(self.is_production_label)
-        layout.addWidget(self.is_production_input)
-        layout.addWidget(self.debug_label)
-        layout.addWidget(self.debug_input)
-        layout.addWidget(self.appearance_label)
-        layout.addWidget(self.appearance_input)
-        layout.addWidget(self.language_label)
-        layout.addWidget(self.language_input)
+        self.boxlayout.addWidget(self.api_key_label)
+        self.boxlayout.addWidget(self.api_key_input)
+        self.boxlayout.addWidget(self.show_api_key_button)
+        self.boxlayout.addWidget(self.secret_key_label)
+        self.boxlayout.addWidget(self.secret_key_input)
+        self.boxlayout.addWidget(self.show_secret_key_button)
+        self.boxlayout.addWidget(self.is_production_label)
+        self.boxlayout.addWidget(self.is_production_input)
+        self.boxlayout.addWidget(self.debug_label)
+        self.boxlayout.addWidget(self.debug_input)
+        self.boxlayout.addWidget(self.appearance_label)
+        self.boxlayout.addWidget(self.appearance_input)
+        self.boxlayout.addWidget(self.language_label)
+        self.boxlayout.addWidget(self.language_input)
 
-        self.setLayout(layout)
+        self.setLayout(self.boxlayout)
 
     def show_api_key(self):
         self.api_key_input.setEchoMode(QLineEdit.Normal)
@@ -119,7 +140,7 @@ class ConfigTab(QWidget):
     def update_lang(self):
         new_lang = self.language_input.currentData()
         self.config_manager.set_lang(new_lang)
-        self.main_widget.initUI(new_lang)
+        asyncio.ensure_future(self.main_widget.initUI(new_lang))
 
     def update_is_production(self):
         self.config_manager.set_is_production(self.is_production_input.currentText() == "True")

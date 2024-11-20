@@ -11,6 +11,7 @@ if __name__ == "__main__":
     asyncio.set_event_loop(loop)
 
     trader = UexcorpTrader(app, loop)
+    loop.run_until_complete(trader.initialize())
     trader.show()
 
     with loop:

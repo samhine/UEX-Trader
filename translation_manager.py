@@ -1,9 +1,12 @@
 # translation_manager.py
 import configparser
+import asyncio
 
 
 class TranslationManager:
     _instance = None
+    _lock = asyncio.Lock()
+    _initialized = asyncio.Event()
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
@@ -21,6 +24,20 @@ class TranslationManager:
                 "fr",
                 "ru"
             ]
+
+    async def initialize(self):
+        async with self._lock:
+            # Make sure any resource to be initialized is initialized here
+            self._initialized.set()
+
+    async def ensure_initialized(self):
+        if not self._initialized.is_set():
+            await self.initialize()
+        await self._initialized.wait()
+
+    async def __aenter__(self):
+        await self.ensure_initialized()
+        return self
 
     def load_translations(self):
         self.translation_config.read(self.translation_file, encoding="UTF-8")

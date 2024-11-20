@@ -21,7 +21,6 @@ class API:
             self.config_manager = config_manager
             self.cache = CacheManager(ttl=cache_ttl)
             self.session = None
-            self.initialized = True
 
     async def initialize(self):
         async with self._lock:
@@ -48,7 +47,8 @@ class API:
         if self.session:
             await self.session.close()
 
-    def get_API_BASE_URL(self):
+    async def get_API_BASE_URL(self):
+        await self.ensure_initialized()
         if self.config_manager.get_is_production():
             return "https://uexcorp.space/api/2.0"
         else:
@@ -58,16 +58,16 @@ class API:
         return logging.getLogger(__name__)
 
     async def fetch_data(self, endpoint, params=None):
+        await self.ensure_initialized()
         cache_key = f"{endpoint}_{params}"
         cached_data = self.cache.get(cache_key)
         logger = self.get_logger()
         if cached_data:
             logger.debug(f"Cache hit for {cache_key}")
             return cached_data
-        url = f"{self.get_API_BASE_URL()}{endpoint}"
+        url = f"{await self.get_API_BASE_URL()}{endpoint}"
         logger.debug(f"API Request: GET {url} {params if params else ''}")
         try:
-            await self.ensure_initialized()
             async with self.session.get(url, params=params) as response:
                 if response.status == 200:
                     data = await response.json()
@@ -86,7 +86,8 @@ class API:
             raise  # Re-raise the exception to be handled by the calling function
 
     async def post_data(self, endpoint, data={}):
-        url = f"{self.get_API_BASE_URL()}{endpoint}"
+        await self.ensure_initialized()
+        url = f"{await self.get_API_BASE_URL()}{endpoint}"
         logger = self.get_logger()
         # TODO - Check if endpoint is available (list of POST endpoints)
         headers = {
@@ -97,7 +98,6 @@ class API:
         data_string = json.dumps(data)
         logger.debug(f"API Request: POST {url} {data_string}")
         try:
-            await self.ensure_initialized()
             async with self.session.post(url, data=data_string, headers=headers) as response:
                 if response.status == 200:
                     responseData = await response.json()
