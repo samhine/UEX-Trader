@@ -1,10 +1,9 @@
-# conftest.py
 import pytest
 import asyncio
 from PyQt5.QtWidgets import QApplication
 from qasync import QEventLoop
-from gui import UexcorpTrader
 import pytest_asyncio
+from gui import UexcorpTrader
 
 
 @pytest.fixture(scope="session")
@@ -14,35 +13,15 @@ def event_loop():
     loop.close()
 
 
-@pytest.fixture(scope="session")
-async def app(event_loop):
+@pytest_asyncio.fixture(scope="session")
+async def qapp(event_loop):
     app = QApplication.instance()
     if app is None:
         app = QApplication([])
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
-    yield app, loop
-    loop.close()
+    yield app
     app.quit()
-
-
-@pytest_asyncio.fixture
-async def trader(app, event_loop, config_manager):
-    app, loop = app
-    trader = UexcorpTrader(app, loop)
-    await trader.initialize()
-    yield trader
-    await trader.cleanup()
-
-
-# Add this fixture to handle API initialization and cleanup
-@pytest_asyncio.fixture(scope="session")
-async def api(config_manager, app):
-    from api import API  # Import your API class
-    api = API(config_manager)
-    await api.initialize()
-    yield api
-    await api.cleanup()  # Add a cleanup method to your API class
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -53,3 +32,21 @@ async def config_manager():
     else:
         config_manager = ConfigManager._instance
     yield config_manager
+
+
+@pytest_asyncio.fixture(scope="session")
+async def api(config_manager, qapp):
+    from api import API
+    api = API(config_manager)
+    await api.initialize()
+    yield api
+    await api.cleanup()
+
+
+@pytest_asyncio.fixture
+async def trader(qapp, config_manager):
+    loop = asyncio.get_event_loop()
+    trader = UexcorpTrader(qapp, loop)
+    await trader.initialize()
+    yield trader
+    await trader.cleanup()
