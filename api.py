@@ -3,10 +3,13 @@ import logging
 import aiohttp
 import json
 from cache_manager import CacheManager
+import asyncio
 
 
 class API:
     _instance = None
+    _lock = asyncio.Lock()
+    _initialized = asyncio.Event()
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
@@ -14,13 +17,39 @@ class API:
         return cls._instance
 
     def __init__(self, config_manager, cache_ttl=1800):
-        if not hasattr(self, 'initialized'):  # Ensure __init__ is only called once
+        if not hasattr(self, 'singleton'):  # Ensure __init__ is only called once
             self.config_manager = config_manager
-            self.session = aiohttp.ClientSession()
             self.cache = CacheManager(ttl=cache_ttl)
-            self.initialized = True
+            self.session = None
+            self.singleton = True
 
-    def get_API_BASE_URL(self):
+    async def initialize(self):
+        async with self._lock:
+            if self.session is None:
+                self.session = aiohttp.ClientSession()
+                self._initialized.set()
+
+    async def cleanup(self):
+        if self.session:
+            await self.session.close()
+            self.session = None
+        self._initialized.clear()
+
+    async def ensure_initialized(self):
+        if not self._initialized.is_set():
+            await self.initialize()
+        await self._initialized.wait()
+
+    async def __aenter__(self):
+        await self.ensure_initialized()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self.session:
+            await self.session.close()
+
+    async def get_API_BASE_URL(self):
+        await self.ensure_initialized()
         if self.config_manager.get_is_production():
             return "https://uexcorp.space/api/2.0"
         else:
@@ -30,13 +59,14 @@ class API:
         return logging.getLogger(__name__)
 
     async def fetch_data(self, endpoint, params=None):
+        await self.ensure_initialized()
         cache_key = f"{endpoint}_{params}"
         cached_data = self.cache.get(cache_key)
         logger = self.get_logger()
         if cached_data:
             logger.debug(f"Cache hit for {cache_key}")
             return cached_data
-        url = f"{self.get_API_BASE_URL()}{endpoint}"
+        url = f"{await self.get_API_BASE_URL()}{endpoint}"
         logger.debug(f"API Request: GET {url} {params if params else ''}")
         try:
             async with self.session.get(url, params=params) as response:
@@ -57,7 +87,8 @@ class API:
             raise  # Re-raise the exception to be handled by the calling function
 
     async def post_data(self, endpoint, data={}):
-        url = f"{self.get_API_BASE_URL()}{endpoint}"
+        await self.ensure_initialized()
+        url = f"{await self.get_API_BASE_URL()}{endpoint}"
         logger = self.get_logger()
         # TODO - Check if endpoint is available (list of POST endpoints)
         headers = {
