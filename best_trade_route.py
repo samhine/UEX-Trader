@@ -21,6 +21,7 @@ class BestTradeRouteTab(QWidget):
         # Initial the ConfigManager instance only once
         if ConfigManager._instance is None:
             self.config_manager = ConfigManager()
+            asyncio.get_event_loop().run_until_complete(self.config_manager.initialize())
         else:
             self.config_manager = ConfigManager._instance
         # Initialize the API instance only once
@@ -29,6 +30,7 @@ class BestTradeRouteTab(QWidget):
             asyncio.get_event_loop().run_until_complete(self.api.initialize())
         else:
             self.api = API._instance
+        # Initialize the TranslationManager instance only once
         if TranslationManager._instance is None:
             self.translation_manager = TranslationManager()
         else:

@@ -1,4 +1,4 @@
-import pytest
+# conftest.py
 import asyncio
 from PyQt5.QtWidgets import QApplication
 from qasync import QEventLoop
@@ -6,8 +6,8 @@ import pytest_asyncio
 from gui import UexcorpTrader
 
 
-@pytest.fixture(scope="session")
-def event_loop():
+@pytest_asyncio.fixture(scope="session")
+async def event_loop():
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
@@ -15,9 +15,7 @@ def event_loop():
 
 @pytest_asyncio.fixture(scope="session")
 async def qapp(event_loop):
-    app = QApplication.instance()
-    if app is None:
-        app = QApplication([])
+    app = QApplication.instance() or QApplication([])
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
     yield app
@@ -27,26 +25,14 @@ async def qapp(event_loop):
 @pytest_asyncio.fixture(scope="session")
 async def config_manager():
     from config_manager import ConfigManager
-    if ConfigManager._instance is None:
-        config_manager = ConfigManager()
-    else:
-        config_manager = ConfigManager._instance
+    config_manager = ConfigManager()
+    await config_manager.initialize()
     yield config_manager
-
-
-@pytest_asyncio.fixture(scope="session")
-async def api(config_manager, qapp):
-    from api import API
-    api = API(config_manager)
-    await api.initialize()
-    yield api
-    await api.cleanup()
 
 
 @pytest_asyncio.fixture
 async def trader(qapp, config_manager):
-    loop = asyncio.get_event_loop()
-    trader = UexcorpTrader(qapp, loop)
+    trader = UexcorpTrader(qapp, asyncio.get_event_loop())
     await trader.initialize()
     yield trader
     await trader.cleanup()

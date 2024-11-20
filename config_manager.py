@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 class ConfigManager:
     _instance = None
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls):
         if cls._instance is None:
-            cls._instance = super(ConfigManager, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
         return cls._instance
 
     def __init__(self, config_file="config.ini"):
@@ -23,7 +23,8 @@ class ConfigManager:
             self.config = configparser.ConfigParser()
             self.load_config()
             self.set_debug(self.get_debug())
-            self.initialized = True
+            self.initialized = False
+            self.API = None
 
             # Initialize the API instance only once
             if API._instance is None:
@@ -31,6 +32,16 @@ class ConfigManager:
                 asyncio.get_event_loop().run_until_complete(self.api.initialize())
             else:
                 self.api = API._instance
+
+    async def initialize(self):
+        if not self.initialized:
+            from api import API
+            if API._instance is None:
+                self.api = API(self)
+                await self.api.initialize()
+            else:
+                self.api = API._instance
+            self.initialized = True
 
     def load_config(self):
         # TODO - Check if configuration is valid

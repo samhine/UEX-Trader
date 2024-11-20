@@ -1,3 +1,4 @@
+# gui.py
 from PyQt5.QtWidgets import QApplication, QTabWidget, QVBoxLayout, QWidget, QStyleFactory
 from PyQt5.QtGui import QIcon, QPalette, QColor
 from PyQt5.QtCore import Qt
@@ -8,6 +9,7 @@ from best_trade_route import BestTradeRouteTab
 from config_manager import ConfigManager
 from translation_manager import TranslationManager
 from api import API
+import asyncio
 
 
 class UexcorpTrader(QWidget):
@@ -16,6 +18,7 @@ class UexcorpTrader(QWidget):
         self.app = app
         self.loop = loop
         self.config_manager = ConfigManager()
+        asyncio.get_event_loop().run_until_complete(self.config_manager.initialize())
         self.translation_manager = TranslationManager()
         self.initUI(self.config_manager.get_lang())
         self.apply_appearance_mode()

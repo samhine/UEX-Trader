@@ -23,6 +23,7 @@ class TradeRouteTab(QWidget):
         # Initial the ConfigManager instance only once
         if ConfigManager._instance is None:
             self.config_manager = ConfigManager()
+            asyncio.get_event_loop().run_until_complete(self.config_manager.initialize())
         else:
             self.config_manager = ConfigManager._instance
         # Initialize the API instance only once
