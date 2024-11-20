@@ -24,14 +24,7 @@ class ConfigManager:
             self.load_config()
             self.set_debug(self.get_debug())
             self.initialized = False
-            self.API = None
-
-            # Initialize the API instance only once
-            if API._instance is None:
-                self.api = API(self)
-                asyncio.get_event_loop().run_until_complete(self.api.initialize())
-            else:
-                self.api = API._instance
+            self.api = None
 
     async def initialize(self):
         if not self.initialized:

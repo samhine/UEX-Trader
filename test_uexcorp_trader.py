@@ -4,7 +4,7 @@ from PyQt5.QtGui import QColor
 
 
 @pytest.mark.asyncio
-async def test_uexcorp_trader_init(trader, qtbot):
+async def test_uexcorp_trader_init(trader):
     assert trader.windowTitle() == "UEX-Trader"
     assert not trader.windowIcon().isNull()
     assert trader.config_manager is not None
@@ -12,7 +12,7 @@ async def test_uexcorp_trader_init(trader, qtbot):
 
 
 @pytest.mark.asyncio
-async def test_uexcorp_trader_apply_appearance_mode(trader, qapp, qtbot):
+async def test_uexcorp_trader_apply_appearance_mode(trader, qapp):
     trader.apply_appearance_mode("Dark")
     assert qapp.palette().color(trader.create_dark_palette().Window) == QColor(53, 53, 53)
     trader.apply_appearance_mode("Light")
@@ -20,7 +20,7 @@ async def test_uexcorp_trader_apply_appearance_mode(trader, qapp, qtbot):
 
 
 @pytest.mark.asyncio
-async def test_tabs_exist(trader, qtbot):
+async def test_tabs_exist(trader):
     """Test that all tabs are present."""
     tabs = trader.findChild(QTabWidget)
     assert tabs is not None
