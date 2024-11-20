@@ -58,8 +58,10 @@ class BestTradeRouteTab(QWidget):
                     self.translation_manager.get_translation("trade_columns_investment", self.config_manager.get_lang()),
                     self.translation_manager.get_translation("trade_columns_unit_margin", self.config_manager.get_lang()),
                     self.translation_manager.get_translation("trade_columns_total_margin", self.config_manager.get_lang()),
-                    self.translation_manager.get_translation("trade_columns_departure_scu_available", self.config_manager.get_lang()),
-                    self.translation_manager.get_translation("trade_columns_arrival_demand_scu", self.config_manager.get_lang()),
+                    self.translation_manager.get_translation("trade_columns_departure_scu_available",
+                                                             self.config_manager.get_lang()),
+                    self.translation_manager.get_translation("trade_columns_arrival_demand_scu",
+                                                             self.config_manager.get_lang()),
                     self.translation_manager.get_translation("trade_columns_profit_margin", self.config_manager.get_lang()),
                     self.translation_manager.get_translation("trade_columns_actions", self.config_manager.get_lang())
                 ]

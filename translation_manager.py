@@ -14,16 +14,16 @@ class TranslationManager:
         return cls._instance
 
     def __init__(self, translation_file="translations.ini"):
-        if not hasattr(self, 'initialized'):  # Ensure __init__ is only called once
+        if not hasattr(self, 'singleton'):  # Ensure __init__ is only called once
             self.translation_file = translation_file
             self.translation_config = configparser.ConfigParser()
             self.load_translations()
-            self.initialized = True
             self.available_langs = [
                 "en",
                 "fr",
                 "ru"
             ]
+            self.singleton = True
 
     async def initialize(self):
         async with self._lock:

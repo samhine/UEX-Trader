@@ -17,10 +17,11 @@ class API:
         return cls._instance
 
     def __init__(self, config_manager, cache_ttl=1800):
-        if not hasattr(self, 'initialized'):  # Ensure __init__ is only called once
+        if not hasattr(self, 'singleton'):  # Ensure __init__ is only called once
             self.config_manager = config_manager
             self.cache = CacheManager(ttl=cache_ttl)
             self.session = None
+            self.singleton = True
 
     async def initialize(self):
         async with self._lock:

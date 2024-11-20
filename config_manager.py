@@ -3,7 +3,6 @@ import configparser
 import logging
 import base64
 import asyncio
-from api import API
 from logger_setup import setup_logger
 
 logger = logging.getLogger(__name__)
@@ -11,6 +10,8 @@ logger = logging.getLogger(__name__)
 
 class ConfigManager:
     _instance = None
+    _lock = asyncio.Lock()
+    _initialized = asyncio.Event()
 
     def __new__(cls):
         if cls._instance is None:
@@ -18,23 +19,27 @@ class ConfigManager:
         return cls._instance
 
     def __init__(self, config_file="config.ini"):
-        if not hasattr(self, 'initialized'):  # Ensure __init__ is only called once
+        if not hasattr(self, 'singleton'):  # Ensure __init__ is only called once
             self.config_file = config_file
             self.config = configparser.ConfigParser()
             self.load_config()
             self.set_debug(self.get_debug())
-            self.initialized = False
-            self.api = None
+            self.singleton = True
 
     async def initialize(self):
-        if not self.initialized:
-            from api import API
-            if API._instance is None:
-                self.api = API(self)
-                await self.api.initialize()
-            else:
-                self.api = API._instance
-            self.initialized = True
+        async with self._lock:
+            if not self._initialized.is_set():
+                # Initialize all async resources here
+                self._initialized.set()
+
+    async def ensure_initialized(self):
+        if not self._initialized.is_set():
+            await self.initialize()
+        await self._initialized.wait()
+
+    async def __aenter__(self):
+        await self.ensure_initialized()
+        return self
 
     def load_config(self):
         # TODO - Check if configuration is valid
