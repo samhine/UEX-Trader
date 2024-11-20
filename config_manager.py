@@ -2,6 +2,7 @@
 import configparser
 import logging
 import base64
+import asyncio
 from api import API
 from logger_setup import setup_logger
 
@@ -27,6 +28,7 @@ class ConfigManager:
             # Initialize the API instance only once
             if API._instance is None:
                 self.api = API(self)
+                asyncio.get_event_loop().run_until_complete(self.api.initialize())
             else:
                 self.api = API._instance
 

@@ -22,6 +22,7 @@ class TradeTab(QWidget):
         # Initialize the API instance only once
         if API._instance is None:
             self.api = API(self.config_manager)
+            asyncio.get_event_loop().run_until_complete(self.api.initialize())
         else:
             self.api = API._instance
         if TranslationManager._instance is None:

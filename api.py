@@ -3,10 +3,13 @@ import logging
 import aiohttp
 import json
 from cache_manager import CacheManager
+import asyncio
 
 
 class API:
     _instance = None
+    _lock = asyncio.Lock()
+    _initialized = asyncio.Event()
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
@@ -16,9 +19,34 @@ class API:
     def __init__(self, config_manager, cache_ttl=1800):
         if not hasattr(self, 'initialized'):  # Ensure __init__ is only called once
             self.config_manager = config_manager
-            self.session = aiohttp.ClientSession()
             self.cache = CacheManager(ttl=cache_ttl)
+            self.session = None
             self.initialized = True
+
+    async def initialize(self):
+        async with self._lock:
+            if self.session is None:
+                self.session = aiohttp.ClientSession()
+                self._initialized.set()
+
+    async def cleanup(self):
+        if self.session:
+            await self.session.close()
+            self.session = None
+        self._initialized.clear()
+
+    async def ensure_initialized(self):
+        if not self._initialized.is_set():
+            await self.initialize()
+        await self._initialized.wait()
+
+    async def __aenter__(self):
+        await self.ensure_initialized()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self.session:
+            await self.session.close()
 
     def get_API_BASE_URL(self):
         if self.config_manager.get_is_production():
@@ -39,6 +67,7 @@ class API:
         url = f"{self.get_API_BASE_URL()}{endpoint}"
         logger.debug(f"API Request: GET {url} {params if params else ''}")
         try:
+            await self.ensure_initialized()
             async with self.session.get(url, params=params) as response:
                 if response.status == 200:
                     data = await response.json()
@@ -68,6 +97,7 @@ class API:
         data_string = json.dumps(data)
         logger.debug(f"API Request: POST {url} {data_string}")
         try:
+            await self.ensure_initialized()
             async with self.session.post(url, data=data_string, headers=headers) as response:
                 if response.status == 200:
                     responseData = await response.json()

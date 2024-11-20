@@ -22,7 +22,7 @@ https://github.com/Hybris95/UEX-Trader/releases
 
 Before you begin, ensure you have met the following requirements:
 
-- You have Python 3.11.10 or higher installed.
+- You have Python 3.12.7 or higher installed.
 - You have `pip` (Python package installer) installed.
 - (Optional) You have access to the UEXcorp API.
 

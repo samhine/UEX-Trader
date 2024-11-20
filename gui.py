@@ -7,6 +7,7 @@ from trade_route_tab import TradeRouteTab
 from best_trade_route import BestTradeRouteTab
 from config_manager import ConfigManager
 from translation_manager import TranslationManager
+from api import API
 
 
 class UexcorpTrader(QWidget):
@@ -44,6 +45,17 @@ class UexcorpTrader(QWidget):
         # Restore window size
         width, height = self.config_manager.get_window_size()
         self.resize(width, height)
+
+    async def initialize(self):
+        # Initialize API and other async resources
+        self.api = API(self.config_manager)
+        await self.api.initialize()
+        # Other async initialization...
+
+    async def cleanup(self):
+        # Cleanup resources
+        await self.api.cleanup()
+        # Other cleanup...
 
     def apply_appearance_mode(self, appearance_mode=None):
         if not appearance_mode:
