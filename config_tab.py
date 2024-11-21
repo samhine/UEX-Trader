@@ -1,3 +1,4 @@
+# config_tab.py
 from PyQt5.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -7,6 +8,7 @@ from PyQt5.QtWidgets import (
     QComboBox,
     QCheckBox
 )
+from PyQt5.QtCore import Qt
 from config_manager import ConfigManager
 from translation_manager import TranslationManager
 import asyncio
@@ -21,11 +23,11 @@ class ConfigTab(QWidget):
         self.main_widget = main_widget
         self.config_manager = None
         self.translation_manager = None
-        self.boxlayout = None
+        self.main_vboxlayout = None
 
     async def initialize(self):
         async with self._lock:
-            if self.config_manager is None or self.translation_manager is None or self.boxlayout is None:
+            if self.config_manager is None or self.translation_manager is None or self.main_vboxlayout is None:
                 # Initial the ConfigManager instance only once
                 if ConfigManager._instance is None:
                     self.config_manager = ConfigManager()
@@ -51,31 +53,55 @@ class ConfigTab(QWidget):
         return self
 
     async def initUI(self):
-        self.boxlayout = QVBoxLayout()
+        self.main_vboxlayout = QVBoxLayout()
 
+        # API KEY
+        self.api_key_vboxlayout = QVBoxLayout()
         self.api_key_label = QLabel(self.translation_manager.get_translation("config_uexcorp_apikey",
                                                                              self.config_manager.get_lang())+":")
+        self.api_key_link = QLabel()
+        self.api_key_link.setOpenExternalLinks(True)
+        self.api_key_link.setTextFormat(Qt.TextFormat.RichText)
+        self.api_key_link.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
+        self.api_key_link.setText('<a href="https://uexcorp.space/api/apps">'
+                                  + self.translation_manager.get_translation("api_key_explain",
+                                                                             self.config_manager.get_lang())
+                                  + '</a>')
         self.api_key_input = QLineEdit(self.config_manager.get_api_key())
         self.api_key_input.setEchoMode(QLineEdit.Password)
         self.api_key_input.editingFinished.connect(self.update_api_key)
-
-        # Create the eye button for API Key
         self.show_api_key_button = QPushButton("👁", self)
         self.show_api_key_button.setFixedSize(30, 30)  # Adjust size as needed
         self.show_api_key_button.pressed.connect(self.show_api_key)
         self.show_api_key_button.released.connect(self.hide_api_key)
+        self.api_key_vboxlayout.addWidget(self.api_key_label)
+        self.api_key_vboxlayout.addWidget(self.api_key_link)
+        self.api_key_vboxlayout.addWidget(self.api_key_input)
+        self.api_key_vboxlayout.addWidget(self.show_api_key_button)
 
+        # SECRET KEY
+        self.secret_key_vboxlayout = QVBoxLayout()
         self.secret_key_label = QLabel(self.translation_manager.get_translation("config_uexcorp_secretkey",
                                                                                 self.config_manager.get_lang())+":")
+        self.secret_key_link = QLabel()
+        self.secret_key_link.setOpenExternalLinks(True)
+        self.secret_key_link.setTextFormat(Qt.TextFormat.RichText)
+        self.secret_key_link.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
+        self.secret_key_link.setText('<a href="https://uexcorp.space/account">'
+                                     + self.translation_manager.get_translation("access_key_explain",
+                                                                                self.config_manager.get_lang())
+                                     + '</a>')
         self.secret_key_input = QLineEdit(self.config_manager.get_secret_key())
         self.secret_key_input.setEchoMode(QLineEdit.Password)
         self.secret_key_input.editingFinished.connect(self.update_secret_key)
-
-        # Create the eye button for Secret Key
         self.show_secret_key_button = QPushButton("👁", self)
         self.show_secret_key_button.setFixedSize(30, 30)  # Adjust size as needed
         self.show_secret_key_button.pressed.connect(self.show_secret_key)
         self.show_secret_key_button.released.connect(self.hide_secret_key)
+        self.secret_key_vboxlayout.addWidget(self.secret_key_label)
+        self.secret_key_vboxlayout.addWidget(self.secret_key_link)
+        self.secret_key_vboxlayout.addWidget(self.secret_key_input)
+        self.secret_key_vboxlayout.addWidget(self.show_secret_key_button)
 
         self.is_production_checkbox = QCheckBox(self.translation_manager.get_translation("config_isproduction",
                                                                                          self.config_manager.get_lang()))
@@ -107,20 +133,16 @@ class ConfigTab(QWidget):
         self.language_input.setCurrentIndex(self.language_input.findData(self.config_manager.get_lang()))
         self.language_input.currentIndexChanged.connect(self.update_lang)
 
-        self.boxlayout.addWidget(self.api_key_label)
-        self.boxlayout.addWidget(self.api_key_input)
-        self.boxlayout.addWidget(self.show_api_key_button)
-        self.boxlayout.addWidget(self.secret_key_label)
-        self.boxlayout.addWidget(self.secret_key_input)
-        self.boxlayout.addWidget(self.show_secret_key_button)
-        self.boxlayout.addWidget(self.is_production_checkbox)
-        self.boxlayout.addWidget(self.debug_checkbox)
-        self.boxlayout.addWidget(self.appearance_label)
-        self.boxlayout.addWidget(self.appearance_input)
-        self.boxlayout.addWidget(self.language_label)
-        self.boxlayout.addWidget(self.language_input)
+        self.main_vboxlayout.addLayout(self.api_key_vboxlayout)
+        self.main_vboxlayout.addLayout(self.secret_key_vboxlayout)
+        self.main_vboxlayout.addWidget(self.is_production_checkbox)
+        self.main_vboxlayout.addWidget(self.debug_checkbox)
+        self.main_vboxlayout.addWidget(self.appearance_label)
+        self.main_vboxlayout.addWidget(self.appearance_input)
+        self.main_vboxlayout.addWidget(self.language_label)
+        self.main_vboxlayout.addWidget(self.language_input)
 
-        self.setLayout(self.boxlayout)
+        self.setLayout(self.main_vboxlayout)
 
     def show_api_key(self):
         self.api_key_input.setEchoMode(QLineEdit.Normal)
