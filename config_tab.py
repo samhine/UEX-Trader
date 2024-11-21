@@ -137,7 +137,7 @@ class ConfigTab(QWidget):
     def update_appearance_mode(self):
         new_appearance = self.appearance_input.currentData()
         self.config_manager.set_appearance_mode(new_appearance)
-        self.main_widget.apply_appearance_mode(new_appearance)
+        asyncio.ensure_future(self.main_widget.apply_appearance_mode(new_appearance))
 
     def update_lang(self):
         new_lang = self.language_input.currentData()
