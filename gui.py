@@ -43,7 +43,7 @@ class UexcorpTrader(QWidget):
                 else:
                     self.api = API._instance
                 await self.initUI(self.config_manager.get_lang())
-                self.apply_appearance_mode()
+                await self.apply_appearance_mode(self.config_manager.get_appearance_mode())
                 self._initialized.set()
 
     async def ensure_initialized(self):
