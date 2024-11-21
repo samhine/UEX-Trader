@@ -11,9 +11,9 @@ from PyQt5.QtCore import Qt
 import asyncio
 from api import API
 from config_manager import ConfigManager
-from functools import partial
 from trade_tab import TradeTab
 from translation_manager import TranslationManager
+from tools import create_async_callback
 
 
 class TradeRouteTab(QWidget):
@@ -177,6 +177,80 @@ class TradeRouteTab(QWidget):
         )
         layout.addWidget(self.page_items_combo)
 
+        self.sorting_options_combo = QComboBox()
+        self.sorting_options_combo.addItem(self.translation_manager.get_translation("sort_trade_margin",
+                                                                                    self.config_manager.get_lang())
+                                           + " ("
+                                           + self.translation_manager.get_translation("uec",
+                                                                                      self.config_manager.get_lang())
+                                           + ")", "total_margin")
+        self.sorting_options_combo.addItem(self.translation_manager.get_translation("sort_profit_margin",
+                                                                                    self.config_manager.get_lang())
+                                           + " (%)", "profit_margin")
+        self.sorting_options_combo.addItem(self.translation_manager.get_translation("sort_scu_margin",
+                                                                                    self.config_manager.get_lang())
+                                           + " ("
+                                           + self.translation_manager.get_translation("uec",
+                                                                                      self.config_manager.get_lang())
+                                           + "/"
+                                           + self.translation_manager.get_translation("scu",
+                                                                                      self.config_manager.get_lang())
+                                           + ")", "unit_margin")
+        self.sorting_options_combo.addItem(self.translation_manager.get_translation("trade_columns_investment",
+                                                                                    self.config_manager.get_lang())
+                                           + " ("
+                                           + self.translation_manager.get_translation("uec",
+                                                                                      self.config_manager.get_lang())
+                                           + ")", "investment")
+        self.sorting_options_combo.addItem(self.translation_manager.get_translation("trade_columns_buy_scu",
+                                                                                    self.config_manager.get_lang())
+                                           + " ("
+                                           + self.translation_manager.get_translation("unit_qty",
+                                                                                      self.config_manager.get_lang())
+                                           + ")", "buy_scu")
+        self.sorting_options_combo.addItem(self.translation_manager.get_translation("sort_oldest_update",
+                                                                                    self.config_manager.get_lang())
+                                           + " ("
+                                           + self.translation_manager.get_translation("unit_minute",
+                                                                                      self.config_manager.get_lang())
+                                           + ")", "oldest_update")
+        self.sorting_options_combo.addItem(self.translation_manager.get_translation("sort_latest_update",
+                                                                                    self.config_manager.get_lang())
+                                           + " ("
+                                           + self.translation_manager.get_translation("unit_minute",
+                                                                                      self.config_manager.get_lang())
+                                           + ")", "latest_update")
+        self.sorting_options_combo.addItem(self.translation_manager.get_translation("sort_buy_latest",
+                                                                                    self.config_manager.get_lang())
+                                           + " ("
+                                           + self.translation_manager.get_translation("unit_minute",
+                                                                                      self.config_manager.get_lang())
+                                           + ")", "buy_latest_update")
+        self.sorting_options_combo.addItem(self.translation_manager.get_translation("sort_sell_latest",
+                                                                                    self.config_manager.get_lang())
+                                           + " ("
+                                           + self.translation_manager.get_translation("unit_minute",
+                                                                                      self.config_manager.get_lang())
+                                           + ")", "sell_latest_update")
+        self.sorting_options_combo.setCurrentIndex(0)
+        self.sorting_options_combo.currentIndexChanged.connect(
+            lambda: asyncio.ensure_future(self.update_page_items())
+        )
+        layout.addWidget(self.sorting_options_combo)
+
+        self.sorting_order_combo = QComboBox()
+        self.sorting_order_combo.addItem(self.translation_manager.get_translation("sort_descending",
+                                                                                  self.config_manager.get_lang()),
+                                         "DESC")
+        self.sorting_order_combo.addItem(self.translation_manager.get_translation("sort_ascending",
+                                                                                  self.config_manager.get_lang()),
+                                         "ASC")
+        self.sorting_order_combo.setCurrentIndex(0)
+        self.sorting_order_combo.currentIndexChanged.connect(
+            lambda: asyncio.ensure_future(self.update_page_items())
+        )
+        layout.addWidget(self.sorting_order_combo)
+
         self.trade_route_table = QTableWidget()
         layout.addWidget(self.trade_route_table)
         self.setLayout(layout)
@@ -277,7 +351,7 @@ class TradeRouteTab(QWidget):
         self.logger.log(logging.INFO, "Searching for a new Trade Route")
         self.trade_route_table.setRowCount(0)  # Clear previous results
 
-        self.main_widget.set_gui_enabled(False)
+        await self.main_widget.set_gui_enabled(False)
         self.main_progress_bar.setVisible(True)
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
@@ -305,7 +379,7 @@ class TradeRouteTab(QWidget):
                                                                           self.config_manager.get_lang())
                                  + f": {e}")
         finally:
-            self.main_widget.set_gui_enabled(True)
+            await self.main_widget.set_gui_enabled(True)
             self.progress_bar.setVisible(False)
             self.main_progress_bar.setVisible(False)
 
@@ -427,6 +501,8 @@ class TradeRouteTab(QWidget):
              if planet["id"] == arrival_commodity.get("id_planet")),
             "Unknown Planet"
         ) + " / " + arrival_commodity.get("terminal_name")
+        departure_modified = departure_commodity["date_modified"]
+        arrival_modified = arrival_commodity["date_modified"]
         return {
             "destination": destination,
             "commodity": departure_commodity.get("commodity_name"),
@@ -446,7 +522,7 @@ class TradeRouteTab(QWidget):
             + self.translation_manager.get_translation("scu", self.config_manager.get_lang()),  # Show original available SCU
             "arrival_demand_scu": str(original_demand_scu) + " "
             + self.translation_manager.get_translation("scu", self.config_manager.get_lang()),  # Show original demand SCU
-            "profit_margin": str(round(profit_margin * 100)) + "%",
+            "profit_margin": str(round(profit_margin * 100)) + " %",
             "arrival_terminal_mcs": arrival_terminal_mcs,
             "departure_system_id": departure_system_id,
             "departure_planet_id": departure_planet_id,
@@ -455,13 +531,19 @@ class TradeRouteTab(QWidget):
             "arrival_planet_id": arrival_commodity.get("id_planet"),
             "arrival_terminal_id": arrival_commodity.get("id_terminal"),
             "commodity_id": departure_commodity.get("id_commodity"),
-            "max_buyable_scu": max_buyable_scu
+            "max_buyable_scu": max_buyable_scu,
+            "buy_latest_update": str(departure_commodity["date_modified"]),
+            "sell_latest_update": str(departure_commodity["date_modified"]),
+            "oldest_update": str(departure_modified) if departure_modified < arrival_modified else str(arrival_modified),
+            "latest_update": str(departure_modified) if departure_modified > arrival_modified else str(arrival_modified)
         }
 
     async def update_trade_route_table(self, trade_routes, columns, quick=True):
         await self.ensure_initialized()
+        sorting_formula = self.sorting_options_combo.currentData()
+        reverse_order = True if self.sorting_order_combo.currentData() == "DESC" else False
         nb_items = 5 if quick else self.page_items_combo.currentData()
-        trade_routes.sort(key=lambda x: float(x["total_margin"].split()[0]), reverse=True)
+        trade_routes.sort(key=lambda x: float(x[sorting_formula].split()[0]), reverse=reverse_order)
         self.trade_route_table.setRowCount(0)  # Clear the table before adding sorted results
         for i, route in enumerate(trade_routes[:nb_items]):
             self.trade_route_table.insertRow(i)
@@ -474,10 +556,10 @@ class TradeRouteTab(QWidget):
                     action_layout = QHBoxLayout()
                     buy_button = QPushButton(self.translation_manager.get_translation("select_to_buy",
                                                                                       self.config_manager.get_lang()))
-                    buy_button.clicked.connect(partial(await self.select_to_buy, trade_routes[i]))
+                    buy_button.clicked.connect(create_async_callback(self.select_to_buy, trade_routes[i]))
                     sell_button = QPushButton(self.translation_manager.get_translation("select_to_sell",
                                                                                        self.config_manager.get_lang()))
-                    sell_button.clicked.connect(partial(await self.select_to_sell, trade_routes[i]))
+                    sell_button.clicked.connect(create_async_callback(self.select_to_sell, trade_routes[i]))
                     action_layout.addWidget(buy_button)
                     action_layout.addWidget(sell_button)
                     action_widget = QWidget()
