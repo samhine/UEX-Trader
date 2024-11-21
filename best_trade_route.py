@@ -15,45 +15,69 @@ from translation_manager import TranslationManager
 
 
 class BestTradeRouteTab(QWidget):
+    _lock = asyncio.Lock()
+    _initialized = asyncio.Event()
+
     def __init__(self, main_widget):
         super().__init__()
         self.main_widget = main_widget
-        # Initial the ConfigManager instance only once
-        if ConfigManager._instance is None:
-            self.config_manager = ConfigManager()
-        else:
-            self.config_manager = ConfigManager._instance
-        # Initialize the API instance only once
-        if API._instance is None:
-            self.api = API(self.config_manager)
-        else:
-            self.api = API._instance
-        if TranslationManager._instance is None:
-            self.translation_manager = TranslationManager()
-        else:
-            self.translation_manager = TranslationManager._instance
+        self.config_manager = None
+        self.api = None
+        self.translation_manager = None
+        self.columns = None
         self.logger = logging.getLogger(__name__)
         self.terminals = []
         self.current_trades = []
-        self.initUI()
         asyncio.ensure_future(self.load_systems())
-        self.columns = [
-            self.translation_manager.get_translation("trade_columns_departure", self.config_manager.get_lang()),
-            self.translation_manager.get_translation("trade_columns_destination", self.config_manager.get_lang()),
-            self.translation_manager.get_translation("trade_columns_commodity", self.config_manager.get_lang()),
-            self.translation_manager.get_translation("trade_columns_buy_scu", self.config_manager.get_lang()),
-            self.translation_manager.get_translation("trade_columns_buy_price", self.config_manager.get_lang()),
-            self.translation_manager.get_translation("trade_columns_sell_price", self.config_manager.get_lang()),
-            self.translation_manager.get_translation("trade_columns_investment", self.config_manager.get_lang()),
-            self.translation_manager.get_translation("trade_columns_unit_margin", self.config_manager.get_lang()),
-            self.translation_manager.get_translation("trade_columns_total_margin", self.config_manager.get_lang()),
-            self.translation_manager.get_translation("trade_columns_departure_scu_available", self.config_manager.get_lang()),
-            self.translation_manager.get_translation("trade_columns_arrival_demand_scu", self.config_manager.get_lang()),
-            self.translation_manager.get_translation("trade_columns_profit_margin", self.config_manager.get_lang()),
-            self.translation_manager.get_translation("trade_columns_actions", self.config_manager.get_lang())
-        ]
 
-    def initUI(self):
+    async def initialize(self):
+        async with self._lock:
+            if self.config_manager is None or self.translation_manager is None or self.api is None or self.columns is None:
+                if ConfigManager._instance is None:
+                    self.config_manager = ConfigManager()
+                    await self.config_manager.initialize()
+                else:
+                    self.config_manager = ConfigManager._instance
+                if TranslationManager._instance is None:
+                    self.translation_manager = TranslationManager()
+                    await self.translation_manager.initialize()
+                else:
+                    self.translation_manager = TranslationManager._instance
+                if API._instance is None:
+                    self.api = API(self.config_manager)
+                    await self.api.initialize()
+                else:
+                    self.api = API._instance
+                self.columns = [
+                    self.translation_manager.get_translation("trade_columns_departure", self.config_manager.get_lang()),
+                    self.translation_manager.get_translation("trade_columns_destination", self.config_manager.get_lang()),
+                    self.translation_manager.get_translation("trade_columns_commodity", self.config_manager.get_lang()),
+                    self.translation_manager.get_translation("trade_columns_buy_scu", self.config_manager.get_lang()),
+                    self.translation_manager.get_translation("trade_columns_buy_price", self.config_manager.get_lang()),
+                    self.translation_manager.get_translation("trade_columns_sell_price", self.config_manager.get_lang()),
+                    self.translation_manager.get_translation("trade_columns_investment", self.config_manager.get_lang()),
+                    self.translation_manager.get_translation("trade_columns_unit_margin", self.config_manager.get_lang()),
+                    self.translation_manager.get_translation("trade_columns_total_margin", self.config_manager.get_lang()),
+                    self.translation_manager.get_translation("trade_columns_departure_scu_available",
+                                                             self.config_manager.get_lang()),
+                    self.translation_manager.get_translation("trade_columns_arrival_demand_scu",
+                                                             self.config_manager.get_lang()),
+                    self.translation_manager.get_translation("trade_columns_profit_margin", self.config_manager.get_lang()),
+                    self.translation_manager.get_translation("trade_columns_actions", self.config_manager.get_lang())
+                ]
+                await self.initUI()
+                self._initialized.set()
+
+    async def ensure_initialized(self):
+        if not self._initialized.is_set():
+            await self.initialize()
+        await self._initialized.wait()
+
+    async def __aenter__(self):
+        await self.ensure_initialized()
+        return self
+
+    async def initUI(self):
         layout = QVBoxLayout()
         self.max_scu_input = QLineEdit()
         self.max_scu_input.setPlaceholderText(self.translation_manager.get_translation("enter",
@@ -186,6 +210,7 @@ class BestTradeRouteTab(QWidget):
 
     async def load_systems(self):
         try:
+            await self.ensure_initialized()
             systems = await self.api.fetch_data("/star_systems")
             for system in systems.get("data", []):
                 if system.get("is_available") == 1:
@@ -201,6 +226,7 @@ class BestTradeRouteTab(QWidget):
                                  + f": {e}")
 
     async def update_departure_planets(self):
+        await self.ensure_initialized()
         self.departure_planet_combo.clear()
         self.departure_planet_combo.addItem(self.translation_manager.get_translation("all_planets",
                                                                                      self.config_manager.get_lang()),
@@ -223,6 +249,7 @@ class BestTradeRouteTab(QWidget):
                                  + f": {e}")
 
     async def update_departure_terminals(self):
+        await self.ensure_initialized()
         self.terminals = []
         planet_id = self.departure_planet_combo.currentData()
         if not planet_id and self.departure_planet_combo.currentData() != "all_planets":
@@ -244,6 +271,7 @@ class BestTradeRouteTab(QWidget):
                                  + f": {e}")
 
     async def update_destination_planets(self):
+        await self.ensure_initialized()
         self.destination_planet_combo.clear()
         self.destination_planet_combo.addItem(self.translation_manager.get_translation("all_planets",
                                                                                        self.config_manager.get_lang()),
@@ -268,6 +296,7 @@ class BestTradeRouteTab(QWidget):
                                  + f": {e}")
 
     async def update_destination_terminals(self):
+        await self.ensure_initialized()
         self.destination_terminals = []
         planet_id = self.destination_planet_combo.currentData()
         if not planet_id and self.destination_planet_combo.currentData() != "all_planets":
@@ -291,9 +320,11 @@ class BestTradeRouteTab(QWidget):
                                  + f": {e}")
 
     async def update_page_items(self):
+        await self.ensure_initialized()
         self.display_trade_routes(self.current_trades, self.columns, quick=False)
 
     async def find_best_trade_routes_users(self):
+        await self.ensure_initialized()
         self.logger.log(logging.INFO, "Searching for Best Trade Routes")
         self.trade_route_table.setRowCount(0)  # Clear previous results
         self.trade_route_table.setColumnCount(len(self.columns))
@@ -382,6 +413,7 @@ class BestTradeRouteTab(QWidget):
             self.progress_bar.setVisible(False)
 
     async def find_best_trade_routes_rework(self):
+        await self.ensure_initialized()
         self.logger.log(logging.INFO, "Searching for Best Trade Routes")
         self.trade_route_table.setRowCount(0)  # Clear previous results
         self.trade_route_table.setColumnCount(len(self.columns))
@@ -502,6 +534,7 @@ class BestTradeRouteTab(QWidget):
         return departure_system_id, departure_planet_id, destination_system_id, destination_planet_id
 
     async def calculate_trade_routes_users(self, commodities_routes, max_scu, max_investment):
+        await self.ensure_initialized()
         trade_routes = await self.process_trade_route_users(commodities_routes, max_scu, max_investment)
         self.display_trade_routes(trade_routes, self.columns, quick=False)
         # Allow UI to update during the search
@@ -509,6 +542,7 @@ class BestTradeRouteTab(QWidget):
         return trade_routes
 
     async def get_terminals_from_planets(self, filtering_planets, filter_public_hangars=False, filter_space_only=False):
+        await self.ensure_initialized()
         terminals = []
         universe = len(filtering_planets)
         self.progress_bar.setMaximum(universe)
@@ -529,6 +563,7 @@ class BestTradeRouteTab(QWidget):
         return terminals
 
     async def get_buy_commodities_from_terminals(self, departure_terminals):
+        await self.ensure_initialized()
         buy_commodities = []
         universe = len(departure_terminals)
         self.progress_bar.setMaximum(universe)
@@ -547,6 +582,7 @@ class BestTradeRouteTab(QWidget):
                                                            buy_commodities,
                                                            filter_public_hangars=False,
                                                            filter_space_only=False):
+        await self.ensure_initialized()
         grouped_buy_commodities_ids = []
         # Establish a GROUPED list of BUY commodities (by commodity_id)
         grouped_buy_commodities_ids = set(map(lambda x: x["id_commodity"], buy_commodities))
@@ -573,6 +609,7 @@ class BestTradeRouteTab(QWidget):
     async def calculate_trade_routes_rework(self, buy_commodities, sell_commodities,
                                             max_scu, max_investment, ignore_stocks,
                                             ignore_demand):
+        await self.ensure_initialized()
         # [Calculate trade routes]
         trade_routes = []
         universe = len(buy_commodities) * len(sell_commodities)
@@ -600,6 +637,7 @@ class BestTradeRouteTab(QWidget):
         return trade_routes
 
     async def process_trade_route_users(self, commodities_routes, max_scu, max_investment):
+        await self.ensure_initialized()
         sorted_routes = []
         universe = len(commodities_routes)
         self.progress_bar.setMaximum(universe)
@@ -678,6 +716,7 @@ class BestTradeRouteTab(QWidget):
 
     async def process_single_trade_route(self, buy_commodity, sell_commodity, max_scu=sys.maxsize,
                                          max_investment=sys.maxsize, ignore_stocks=False, ignore_demand=False):
+        await self.ensure_initialized()
         route = None
         if buy_commodity["id_commodity"] != sell_commodity["id_commodity"]:
             return route
@@ -744,7 +783,8 @@ class BestTradeRouteTab(QWidget):
         }
         return route
 
-    def display_trade_routes(self, trade_routes, columns, quick=True):
+    async def display_trade_routes(self, trade_routes, columns, quick=True):
+        await self.ensure_initialized()
         nb_items = 5 if quick else self.page_items_combo.currentData()
         self.trade_route_table.setRowCount(0)  # Clear the table before adding sorted results
         trade_routes.sort(key=lambda x: float(x["total_margin"].split()[0]), reverse=True)
@@ -756,26 +796,28 @@ class BestTradeRouteTab(QWidget):
                     item.setFlags(item.flags() & ~Qt.ItemIsEditable)  # Make the item non-editable
                     self.trade_route_table.setItem(i, j, item)
                 else:
-                    self.add_action_buttons(i, j, trade_routes[i])
+                    await self.add_action_buttons(i, j, trade_routes[i])
 
         # Resize columns to fit contents
         self.trade_route_table.resizeColumnsToContents()
 
-    def add_action_buttons(self, i, j, trade_route):
+    async def add_action_buttons(self, i, j, trade_route):
+        await self.ensure_initialized()
         action_layout = QHBoxLayout()
         buy_button = QPushButton(self.translation_manager.get_translation("select_to_buy",
                                                                           self.config_manager.get_lang()))
-        buy_button.clicked.connect(partial(self.select_to_buy, trade_route))
+        buy_button.clicked.connect(partial(await self.select_to_buy, trade_route))
         sell_button = QPushButton(self.translation_manager.get_translation("select_to_sell",
                                                                            self.config_manager.get_lang()))
-        sell_button.clicked.connect(partial(self.select_to_sell, trade_route))
+        sell_button.clicked.connect(partial(await self.select_to_sell, trade_route))
         action_layout.addWidget(buy_button)
         action_layout.addWidget(sell_button)
         action_widget = QWidget()
         action_widget.setLayout(action_layout)
         self.trade_route_table.setCellWidget(i, j, action_widget)
 
-    def select_to_buy(self, trade_route):
+    async def select_to_buy(self, trade_route):
+        await self.ensure_initialized()
         self.logger.log(logging.INFO, "Selected route to buy")
         trade_tab = self.main_widget.findChild(TradeTab)
         if trade_tab:
@@ -787,7 +829,8 @@ class BestTradeRouteTab(QWidget):
                                  self.translation_manager.get_translation("error_generic",
                                                                           self.config_manager.get_lang()))
 
-    def select_to_sell(self, trade_route):
+    async def select_to_sell(self, trade_route):
+        await self.ensure_initialized()
         self.logger.log(logging.INFO, "Selected route to sell")
         trade_tab = self.main_widget.findChild(TradeTab)
         if trade_tab:
