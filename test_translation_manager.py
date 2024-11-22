@@ -1,6 +1,5 @@
 # test_translation_manager.py
 import pytest
-import aiohttp
 
 
 @pytest.mark.asyncio
