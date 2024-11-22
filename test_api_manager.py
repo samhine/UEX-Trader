@@ -7,12 +7,12 @@ import aiohttp
 async def test_wrong_endpoints(trader):
     api_manager = trader.api
     try:
-        data = await api_manager.fetch_data("/unknown_endpoint")
+        await api_manager.fetch_data("/unknown_endpoint")
         assert False
     except aiohttp.ClientError as e:
         assert str(e).startswith("404")
     try:
-        data = await api_manager.fetch_data("malformed_endpoint")
+        await api_manager.fetch_data("malformed_endpoint")
         assert False
     except aiohttp.ClientError as e:
         assert str(e).startswith("404")
