@@ -7,44 +7,77 @@ from PyQt5.QtCore import Qt
 import asyncio
 from api import API
 from config_manager import ConfigManager
+from translation_manager import TranslationManager
 
 
 class TradeTab(QWidget):
+    _lock = asyncio.Lock()
+    _initialized = asyncio.Event()
+
     def __init__(self, main_widget):
         super().__init__()
         self.main_widget = main_widget
-        # Initial the ConfigManager instance only once
-        if ConfigManager._instance is None:
-            self.config_manager = ConfigManager()
-        else:
-            self.config_manager = ConfigManager._instance
-        # Initialize the API instance only once
-        if API._instance is None:
-            self.api = API(self.config_manager)
-        else:
-            self.api = API._instance
+        self.config_manager = None
+        self.api = None
+        self.translation_manager = None
         self.commodities = []
         self.terminals = []
-        self.initUI()
         asyncio.ensure_future(self.load_systems())
 
-    def initUI(self):
+    async def initialize(self):
+        async with self._lock:
+            if self.config_manager is None or self.translation_manager is None or self.api is None:
+                # Initial the ConfigManager instance only once
+                if ConfigManager._instance is None:
+                    self.config_manager = ConfigManager()
+                    await self.config_manager.initialize()
+                else:
+                    self.config_manager = ConfigManager._instance
+                # Initialize the API instance only once
+                if API._instance is None:
+                    self.api = API(self.config_manager)
+                    await self.api.initialize()
+                else:
+                    self.api = API._instance
+                # Initialize the TranslationManager instance only once
+                if TranslationManager._instance is None:
+                    self.translation_manager = TranslationManager()
+                    await self.translation_manager.initialize()
+                else:
+                    self.translation_manager = TranslationManager._instance
+                await self.initUI()
+                self._initialized.set()
+
+    async def ensure_initialized(self):
+        if not self._initialized.is_set():
+            await self.initialize()
+        await self._initialized.wait()
+
+    async def __aenter__(self):
+        await self.ensure_initialized()
+        return self
+
+    async def initUI(self):
         main_layout = QVBoxLayout()
-        system_label = QLabel("Select System:")
+        system_label = QLabel(self.translation_manager.get_translation("select_system",
+                                                                       self.config_manager.get_lang())+":")
         self.system_combo = QComboBox()
         self.system_combo.currentIndexChanged.connect(lambda: asyncio.ensure_future(self.update_planets()))
         main_layout.addWidget(system_label)
         main_layout.addWidget(self.system_combo)
 
-        planet_label = QLabel("Select Planet:")
+        planet_label = QLabel(self.translation_manager.get_translation("select_planet",
+                                                                       self.config_manager.get_lang())+":")
         self.planet_combo = QComboBox()
         self.planet_combo.currentIndexChanged.connect(lambda: asyncio.ensure_future(self.update_terminals()))
         main_layout.addWidget(planet_label)
         main_layout.addWidget(self.planet_combo)
 
-        terminal_label = QLabel("Select Terminal:")
+        terminal_label = QLabel(self.translation_manager.get_translation("select_terminal",
+                                                                         self.config_manager.get_lang())+":")
         self.terminal_filter_input = QLineEdit()
-        self.terminal_filter_input.setPlaceholderText("Filter Terminals")
+        self.terminal_filter_input.setPlaceholderText(self.translation_manager.get_translation("filter_terminals",
+                                                                                               self.config_manager.get_lang()))
         self.terminal_filter_input.textChanged.connect(self.filter_terminals)
         self.terminal_combo = QComboBox()
         self.terminal_combo.currentIndexChanged.connect(lambda: asyncio.ensure_future(self.update_commodities()))
@@ -52,39 +85,48 @@ class TradeTab(QWidget):
         main_layout.addWidget(self.terminal_filter_input)
         main_layout.addWidget(self.terminal_combo)
 
-        commodity_buy_label = QLabel("Commodities to Buy:")
+        commodity_buy_label = QLabel(self.translation_manager.get_translation("commodities_to_buy",
+                                                                              self.config_manager.get_lang())+":")
         self.commodity_buy_list = QListWidget()
         self.commodity_buy_list.currentItemChanged.connect(self.update_buy_price)
         main_layout.addWidget(commodity_buy_label)
         main_layout.addWidget(self.commodity_buy_list)
 
-        commodity_sell_label = QLabel("Commodities to Sell:")
+        commodity_sell_label = QLabel(self.translation_manager.get_translation("commodities_to_sell",
+                                                                               self.config_manager.get_lang())+":")
         self.commodity_sell_list = QListWidget()
         self.commodity_sell_list.currentItemChanged.connect(self.update_sell_price)
         main_layout.addWidget(commodity_sell_label)
         main_layout.addWidget(self.commodity_sell_list)
 
-        amount_label = QLabel("Amount (SCU):")
+        amount_label = QLabel(self.translation_manager.get_translation("amount",
+                                                                       self.config_manager.get_lang())
+                              + " (" + self.translation_manager.get_translation("scu",
+                                                                                self.config_manager.get_lang()) + "):")
         self.amount_input = QLineEdit()
         main_layout.addWidget(amount_label)
         main_layout.addWidget(self.amount_input)
 
-        buy_price_label = QLabel("Buy Price:")
+        buy_price_label = QLabel(self.translation_manager.get_translation("trade_columns_buy_price",
+                                                                          self.config_manager.get_lang())+":")
         self.buy_price_input = QLineEdit()
         main_layout.addWidget(buy_price_label)
         main_layout.addWidget(self.buy_price_input)
 
-        sell_price_label = QLabel("Sell Price:")
+        sell_price_label = QLabel(self.translation_manager.get_translation("trade_columns_sell_price",
+                                                                           self.config_manager.get_lang())+":")
         self.sell_price_input = QLineEdit()
         main_layout.addWidget(sell_price_label)
         main_layout.addWidget(self.sell_price_input)
 
-        self.buy_button = QPushButton("Declare Purchase on UEXcorp")
+        self.buy_button = QPushButton(self.translation_manager.get_translation("declare_purchase",
+                                                                               self.config_manager.get_lang()))
         self.buy_button.setEnabled(False)
         self.buy_button.clicked.connect(lambda: asyncio.ensure_future(self.buy_commodity()))
         main_layout.addWidget(self.buy_button)
 
-        self.sell_button = QPushButton("Declare Sale on UEXcorp")
+        self.sell_button = QPushButton(self.translation_manager.get_translation("declare_sale",
+                                                                                self.config_manager.get_lang()))
         self.sell_button.setEnabled(False)
         self.sell_button.clicked.connect(lambda: asyncio.ensure_future(self.sell_commodity()))
         main_layout.addWidget(self.sell_button)
@@ -93,6 +135,7 @@ class TradeTab(QWidget):
 
     async def load_systems(self):
         try:
+            await self.ensure_initialized()
             systems = await self.api.fetch_data("/star_systems")
             for system in systems.get("data", []):
                 if system.get("is_available") == 1:
@@ -100,9 +143,14 @@ class TradeTab(QWidget):
             logging.info("Systems loaded successfully.")
         except Exception as e:
             logging.error(f"Failed to load systems: {e}")
-            QMessageBox.critical(self, "Error", f"Failed to load systems: {e}")
+            QMessageBox.critical(self, self.translation_manager.get_translation("error_error",
+                                                                                self.config_manager.get_lang()),
+                                 self.translation_manager.get_translation("error_failed_to_load_systems",
+                                                                          self.config_manager.get_lang())
+                                 + ": " + str(e))
 
     async def update_planets(self):
+        await self.ensure_initialized()
         self.planet_combo.clear()
         system_id = self.system_combo.currentData()
         if not system_id:
@@ -114,9 +162,14 @@ class TradeTab(QWidget):
             logging.info(f"Planets loaded successfully for star_system ID : {system_id}")
         except Exception as e:
             logging.error(f"Failed to load planets: {e}")
-            QMessageBox.critical(self, "Error", f"Failed to load planets: {e}")
+            QMessageBox.critical(self, self.translation_manager.get_translation("error_error",
+                                                                                self.config_manager.get_lang()),
+                                 self.translation_manager.get_translation("error_failed_to_load_planets",
+                                                                          self.config_manager.get_lang())
+                                 + ": " + str(e))
 
     async def update_terminals(self):
+        await self.ensure_initialized()
         self.terminal_combo.clear()
         self.terminal_filter_input.clear()
         self.terminals = []
@@ -132,7 +185,11 @@ class TradeTab(QWidget):
             return self.terminals
         except Exception as e:
             logging.error(f"Failed to load terminals: {e}")
-            QMessageBox.critical(self, "Error", f"Failed to load terminals: {e}")
+            QMessageBox.critical(self, self.translation_manager.get_translation("error_error",
+                                                                                self.config_manager.get_lang()),
+                                 self.translation_manager.get_translation("error_failed_to_load_terminals",
+                                                                          self.config_manager.get_lang())
+                                 + ": " + str(e))
             return []
 
     def filter_terminals(self, terminal_id=None):
@@ -147,6 +204,7 @@ class TradeTab(QWidget):
                 self.terminal_combo.setCurrentIndex(index)
 
     async def update_commodities(self):
+        await self.ensure_initialized()
         self.commodity_buy_list.clear()
         self.commodity_sell_list.clear()
         self.buy_price_input.clear()
@@ -169,7 +227,11 @@ class TradeTab(QWidget):
             logging.info(f"Commodities loaded successfully for terminal ID : {terminal_id}")
         except Exception as e:
             logging.error(f"Failed to load commodities: {e}")
-            QMessageBox.critical(self, "Error", f"Failed to load commodities: {e}")
+            QMessageBox.critical(self, self.translation_manager.get_translation("error_error",
+                                                                                self.config_manager.get_lang()),
+                                 self.translation_manager.get_translation("error_failed_to_load_commodities",
+                                                                          self.config_manager.get_lang())
+                                 + ": " + str(e))
 
     def update_buy_price(self, current, previous):
         if current:
@@ -200,9 +262,13 @@ class TradeTab(QWidget):
         await self.perform_trade(self.commodity_sell_list, is_buy=False)
 
     async def perform_trade(self, commodity_list, is_buy):
+        await self.ensure_initialized()
         selected_item = commodity_list.currentItem()
         if not selected_item:
-            QMessageBox.warning(self, "Error", "Please select a commodity.")
+            QMessageBox.warning(self, self.translation_manager.get_translation("error_error",
+                                                                               self.config_manager.get_lang()),
+                                self.translation_manager.get_translation("error_input_select_comm",
+                                                                         self.config_manager.get_lang()))
             return
 
         operation = "buy" if is_buy else "sell"
@@ -219,7 +285,7 @@ class TradeTab(QWidget):
             logger.debug(f"Attempting trade - Operation: {operation}, Terminal ID: {terminal_id}, "
                          f"Commodity ID: {id_commodity}, Amount: {amount}, Price: {price}")
 
-            self.validate_trade_inputs(terminal_id, id_commodity, amount, price)
+            await self.validate_trade_inputs(terminal_id, id_commodity, amount, price)
             await self.validate_terminal_and_commodity(planet_id, terminal_id, id_commodity)
 
             data = {
@@ -232,46 +298,71 @@ class TradeTab(QWidget):
 
             result = await self.api.perform_trade(data)
 
-            self.handle_trade_result(result, logger)
+            await self.handle_trade_result(result, logger)
         except aiohttp.ClientResponseError as e:
             if e.status == 403:
                 logger.warning("API Key given is absent or invalid")
-                QMessageBox.warning(self, "API Key given is absent or invalid",
-                                    "Switch to Configuration tab\nEnter a valid API Key & Secret Key\nSave Configuration")
+                QMessageBox.warning(self, self.translation_manager.get_translation("error_input_api_invalid",
+                                                                                   self.config_manager.get_lang()),
+                                    self.translation_manager.get_translation("error_input_api_invalid_details",
+                                                                             self.config_manager.get_lang()))
             else:
                 logger.exception(f"An unexpected error occurred: {e}")
-                QMessageBox.critical(self, "Error", f"An error occurred: {e}")
+                QMessageBox.critical(self, self.translation_manager.get_translation("error_error",
+                                                                                    self.config_manager.get_lang()),
+                                     self.translation_manager.get_translation("error_generic",
+                                                                              self.config_manager.get_lang()) + ": " + str(e))
         except ValueError as e:
             logger.warning(f"Input Error: {e}")
-            QMessageBox.warning(self, "Input Error", str(e))
+            QMessageBox.warning(self, self.translation_manager.get_translation("error_input_error",
+                                                                               self.config_manager.get_lang()), str(e))
         except Exception as e:
             logger.exception(f"An unexpected error occurred: {e}")
-            QMessageBox.critical(self, "Error", f"An error occurred: {e}")
+            QMessageBox.critical(self, self.translation_manager.get_translation("error_error", self.config_manager.get_lang()),
+                                 self.translation_manager.get_translation("error_generic",
+                                                                          self.config_manager.get_lang())
+                                 + ": " + str(e))
 
-    def validate_trade_inputs(self, terminal_id, id_commodity, amount, price):
+    async def validate_trade_inputs(self, terminal_id, id_commodity, amount, price):
+        await self.ensure_initialized()
         if not all([terminal_id, id_commodity, amount, price]):
-            raise ValueError("Please fill all fields.")
+            raise ValueError(self.translation_manager.get_translation("error_input_fill_all_fields",
+                                                                      self.config_manager.get_lang()))
         if not re.match(r'^\d+$', amount):
-            raise ValueError("Amount must be a valid integer.")
+            raise ValueError(self.translation_manager.get_translation("error_input_invalid_amount",
+                                                                      self.config_manager.get_lang()))
         if not re.match(r'^\d+(\.\d+)?$', price):
-            raise ValueError("Price must be a valid number.")
+            raise ValueError(self.translation_manager.get_translation("error_input_invalid_price",
+                                                                      self.config_manager.get_lang()))
 
     async def validate_terminal_and_commodity(self, planet_id, terminal_id, id_commodity):
+        await self.ensure_initialized()
         terminals = await self.api.fetch_data("/terminals", params={'id_planet': planet_id})
         if not any(terminal.get('id') == terminal_id for terminal in terminals.get("data", [])):
-            raise ValueError("Selected terminal does not exist.")
+            raise ValueError(self.translation_manager.get_translation("error_input_invalid_terminal",
+                                                                      self.config_manager.get_lang()))
         if not any(commodity["id_commodity"] == id_commodity for commodity in self.commodities):
-            raise ValueError("Selected commodity does not exist on this terminal.")
+            raise ValueError(self.translation_manager.get_translation("error_input_commodity_doesnt_exist",
+                                                                      self.config_manager.get_lang()))
 
-    def handle_trade_result(self, result, logger):
+    async def handle_trade_result(self, result, logger):
+        await self.ensure_initialized()
         if result and "data" in result and "id_user_trade" in result["data"]:
             trade_id = result["data"].get('id_user_trade')
             logger.info(f"Trade successful! Trade ID: {trade_id}")
-            QMessageBox.information(self, "Success", f"Trade successful! Trade ID: {trade_id}")
+            QMessageBox.information(self, self.translation_manager.get_translation("success_success",
+                                                                                   self.config_manager.get_lang()),
+                                    self.translation_manager.get_translation("success_trade_successful",
+                                                                             self.config_manager.get_lang()) + "!\n"
+                                    + self.translation_manager.get_translation("trade_id",
+                                                                               self.config_manager.get_lang())
+                                    + f": {trade_id}")
         else:
             error_message = result.get('message', 'Unknown error')
             logger.error(f"Trade failed: {error_message}")
-            QMessageBox.critical(self, "Error", f"Trade failed: {error_message}")
+            QMessageBox.critical(self, self.translation_manager.get_translation("error_error", self.config_manager.get_lang()),
+                                 self.translation_manager.get_translation("error_trade_failed", self.config_manager.get_lang())
+                                 + f": {error_message}")
 
     async def select_trade_route(self, trade_route, is_buy):
         logger = logging.getLogger(__name__)

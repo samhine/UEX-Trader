@@ -1,9 +1,10 @@
-aiohttp==3.8.4
+aiohttp==3.11.6
 PyQt5==5.15.11
-configparser==5.3.0
-qasync==0.23.0
-pyinstaller==6.11.0
+configparser==7.1.0
+qasync==0.27.1
+pyinstaller==6.11.1
 flake8==7.1.1
 pytest==8.3.3
 pytest-qt==4.4.0
 pytest-xvfb==3.0.0
+pytest-asyncio==0.24.0
