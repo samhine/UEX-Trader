@@ -2,7 +2,7 @@
 import configparser
 import logging
 import base64
-from api import API
+import asyncio
 from logger_setup import setup_logger
 
 logger = logging.getLogger(__name__)
@@ -10,27 +10,39 @@ logger = logging.getLogger(__name__)
 
 class ConfigManager:
     _instance = None
+    _lock = asyncio.Lock()
+    _initialized = asyncio.Event()
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls):
         if cls._instance is None:
-            cls._instance = super(ConfigManager, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
         return cls._instance
 
     def __init__(self, config_file="config.ini"):
-        if not hasattr(self, 'initialized'):  # Ensure __init__ is only called once
+        if not hasattr(self, 'singleton'):  # Ensure __init__ is only called once
             self.config_file = config_file
             self.config = configparser.ConfigParser()
             self.load_config()
             self.set_debug(self.get_debug())
-            self.initialized = True
+            self.singleton = True
 
-            # Initialize the API instance only once
-            if API._instance is None:
-                self.api = API(self)
-            else:
-                self.api = API._instance
+    async def initialize(self):
+        async with self._lock:
+            if not self._initialized.is_set():
+                # Initialize all async resources here
+                self._initialized.set()
+
+    async def ensure_initialized(self):
+        if not self._initialized.is_set():
+            await self.initialize()
+        await self._initialized.wait()
+
+    async def __aenter__(self):
+        await self.ensure_initialized()
+        return self
 
     def load_config(self):
+        # TODO - Check if configuration is valid
         self.config.read(self.config_file)
 
     def save_config(self):
@@ -99,3 +111,13 @@ class ConfigManager:
         width = int(self.config.get("GUI", "window_width", fallback="800"))
         height = int(self.config.get("GUI", "window_height", fallback="600"))
         return width, height
+
+    def get_lang(self):
+        return self.config.get("SETTINGS", "language", fallback="en")
+
+    def set_lang(self, lang):
+        # TODO - Check if lang is part of the current language list
+        if "SETTINGS" not in self.config:
+            self.config["SETTINGS"] = {}
+        self.config["SETTINGS"]["language"] = lang
+        self.save_config()
