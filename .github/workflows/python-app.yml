@@ -25,14 +25,7 @@ jobs:
       uses: actions/setup-python@v5.3.0
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Restore Cache
-      uses: actions/cache/restore@v4.1.2
-      id: cache-restore
-      with:
-        path: .venv
-        key: ${{ matrix.os }}-python-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
-        restore-keys: ${{ matrix.os }}-python-${{ matrix.python-version }}
-        enableCrossOsArchive: false
+        cache: 'pip'
     - name: Create VENV
       run: |
         python -m venv .venv
@@ -40,21 +33,10 @@ jobs:
       if: ${{ matrix.os == 'ubuntu-latest' }}
       run: |
         source .venv/bin/activate
-    - name: Activate VENV (Windows)
-      if: ${{ matrix.os == 'windows-latest' }}
-      run: |
-        .\.venv\Scripts\activate
     - name: Install dependencies
       if: ${{ steps.cache-restore.outputs.cache-hit != 'true' }}
       run: |
         python -m pip install -r requirements.txt
-    - name: Save Cache
-      uses: actions/cache/save@v4.1.2
-      if: ${{ steps.cache-restore.outputs.cache-hit != 'true' }}
-      with:
-        path: .venv
-        key: ${{ matrix.os }}-python-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
-        enableCrossOsArchive: false
   test:
     needs: env
     strategy:
@@ -70,16 +52,7 @@ jobs:
       uses: actions/setup-python@v5.3.0
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Restore Cache
-      id: cache-restore
-      uses: actions/cache/restore@v4.1.2
-      with:
-        path: .venv
-        key: ${{ matrix.os }}-python-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
-        restore-keys: ${{ matrix.os }}-python-${{ matrix.python-version }}
-        enableCrossOsArchive: false
-        # We should always expect a present cache based on the `env` step
-        fail-on-cache-miss: true
+        cache: 'pip'
     - name: Activate VENV (Linux)
       if: ${{ matrix.os == 'ubuntu-latest' }}
       run: |
