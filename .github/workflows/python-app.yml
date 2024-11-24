@@ -27,6 +27,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Restore Cache
       uses: actions/cache/restore@v4.1.2
+      id: cache-restore
       with:
         path: .venv
         key: ${{ matrix.os }}-python-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
@@ -44,6 +45,7 @@ jobs:
       run: |
         .\.venv\Scripts\activate
     - name: Install dependencies
+      if: ${{ steps.cache-restore.outputs.cache-hit != 'true' }}
       run: |
         python -m pip install -r requirements.txt
     - name: Save Cache
