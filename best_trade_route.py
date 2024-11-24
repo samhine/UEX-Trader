@@ -684,7 +684,7 @@ class BestTradeRouteTab(QWidget):
                     for destination_planet in destination_planets:
                         if (unfiltered_commodity["id_star_system"] == destination_planet["id_star_system"]
                             and ((not unfiltered_commodity["id_planet"] and len(destination_planets) > 1)
-                                    or (unfiltered_commodity["id_planet"] == destination_planet["id"]))):
+                                 or (unfiltered_commodity["id_planet"] == destination_planet["id"]))):
                             sell_commodities.append(unfiltered_commodity)
             actionProgress += 1
             self.progress_bar.setValue(actionProgress)
