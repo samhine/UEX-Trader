@@ -50,6 +50,7 @@ jobs:
         python -m pip install -r requirements.txt
     - name: Save Cache
       uses: actions/cache/save@v4.1.2
+      if: ${{ steps.cache-restore.outputs.cache-hit != 'true' }}
       with:
         path: .venv
         key: ${{ matrix.os }}-python-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
@@ -92,6 +93,7 @@ jobs:
         pip --version
         pip list
     - name: Install Requirements from Cache
+      if: ${{ steps.cache-restore.outputs.cache-hit != 'true' }}
       run: |
         python -m pip --version
         python -m pip install -r requirements.txt
