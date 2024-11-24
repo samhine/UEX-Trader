@@ -92,6 +92,7 @@ jobs:
     - name: Install Requirements from Cache
       run: |
         python -m pip --version
+        python -m pip freeze
         python -m pip install -r requirements.txt
         python -m pip list
     - name: Lint with flake8
