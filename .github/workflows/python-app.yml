@@ -34,7 +34,6 @@ jobs:
         enableCrossOsArchive: false
     - name: Create VENV
       run: |
-        ls
         python -m venv .venv
     - name: Activate VENV (Linux)
       if: ${{ matrix.os == 'ubuntu-latest' }}
